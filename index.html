@@ -1,0 +1,1680 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Storyboard Studio</title>
+
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  
+  <!-- Custom Scrollbar & Fonts -->
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Architects+Daughter&display=swap');
+    
+    .custom-scrollbar::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-track {
+      background: rgba(31, 41, 55, 0.5); 
+      border-radius: 4px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb {
+      background: rgba(99, 102, 241, 0.8); 
+      border-radius: 4px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+      background: rgba(99, 102, 241, 1); 
+    }
+    
+    body {
+      background-color: #030712; /* Tailwind gray-950 */
+      margin: 0;
+      overflow: hidden; /* Prevent body scroll, app handles its own scrolling */
+    }
+  </style>
+
+  <!-- React & ReactDOM -->
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  
+  <!-- Global bindings so UMD builds don't crash -->
+  <script>
+    window.global = window;
+    window.react = window.React;
+  </script>
+
+  <!-- Babel for parsing JSX in the browser -->
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+  <!-- Lucide Icons (UMD Build) -->
+  <script src="https://unpkg.com/lucide-react@0.292.0/dist/umd/lucide-react.js"></script>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const { useState, useRef, useEffect } = React;
+    
+    // --- FAILSAFE ICON BINDING (Fixes React Error 130 Black Screens) ---
+    // If an icon is renamed or removed from the CDN, it renders a dummy circle instead of crashing the whole app.
+    const LucideIcons = window.LucideReact || window.lucideReact || window.lucide || {};
+    const FallbackIcon = ({className}) => (
+      <svg className={className} width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+        <circle cx="12" cy="12" r="10"/>
+      </svg>
+    );
+    const getIcon = (name) => LucideIcons[name] || FallbackIcon;
+
+    const Upload = getIcon('Upload');
+    const Play = getIcon('Play');
+    const Pause = getIcon('Pause');
+    const Camera = getIcon('Camera');
+    const Download = getIcon('Download');
+    const Trash2 = LucideIcons.Trash2 || LucideIcons.Trash || FallbackIcon;
+    const X = getIcon('X');
+    const ImageIcon = LucideIcons.Image || LucideIcons.ImageIcon || FallbackIcon;
+    const Settings = getIcon('Settings');
+    const Film = getIcon('Film');
+    const RefreshCw = getIcon('RefreshCw');
+    const Edit3 = LucideIcons.Edit3 || LucideIcons.Edit || LucideIcons.Pen || FallbackIcon;
+    const Move = getIcon('Move');
+    const MousePointer2 = LucideIcons.MousePointer2 || LucideIcons.Pointer || FallbackIcon;
+    const TypeIcon = LucideIcons.Type || LucideIcons.Text || FallbackIcon;
+    const ArrowUpRight = getIcon('ArrowUpRight');
+    const Minus = getIcon('Minus');
+    const Navigation = getIcon('Navigation');
+    const Bold = getIcon('Bold');
+    const Italic = getIcon('Italic');
+    const RotateCw = LucideIcons.RotateCw || LucideIcons.RotateRight || FallbackIcon;
+    const LayoutGrid = LucideIcons.LayoutGrid || LucideIcons.Grid || FallbackIcon;
+    const Maximize = getIcon('Maximize');
+    const Minimize = getIcon('Minimize');
+
+    const APP_VERSION = "v3.0.4 (Stable)"; // UI Version Tracking
+    const OOB_MARGIN = 150; 
+
+    // --- Font Loading for Export Bypass ---
+    let architectsDaughterBase64 = '';
+    const loadFontBase64 = async () => {
+      try {
+        const cssRes = await fetch('https://fonts.googleapis.com/css2?family=Architects+Daughter&display=swap');
+        const cssText = await cssRes.text();
+        const urlMatch = cssText.match(/url\((https:\/\/[^)]+)\)/);
+        if (urlMatch && urlMatch[1]) {
+          const fontRes = await fetch(urlMatch[1]);
+          const fontBlob = await fontRes.blob();
+          const reader = new FileReader();
+          reader.onloadend = () => {
+            architectsDaughterBase64 = reader.result;
+          };
+          reader.readAsDataURL(fontBlob);
+        }
+      } catch (e) {
+        console.error('Failed to load font base64', e);
+      }
+    };
+    loadFontBase64();
+
+    // --- Utils & Math Helpers ---
+    const formatTime = (seconds) => {
+      if (isNaN(seconds) || seconds === null || seconds === undefined) return "0:00";
+      const m = Math.floor(seconds / 60);
+      const s = Math.floor(seconds % 60);
+      return `${m}:${s.toString().padStart(2, '0')}`;
+    };
+
+    const adjustColor = (hex, intensity) => {
+      const r = parseInt(hex.slice(1, 3), 16);
+      const g = parseInt(hex.slice(3, 5), 16);
+      const b = parseInt(hex.slice(5, 7), 16);
+      
+      const nr = Math.min(255, Math.max(0, Math.round(r * intensity)));
+      const ng = Math.min(255, Math.max(0, Math.round(g * intensity)));
+      const nb = Math.min(255, Math.max(0, Math.round(b * intensity)));
+      
+      return `#${nr.toString(16).padStart(2, '0')}${ng.toString(16).padStart(2, '0')}${nb.toString(16).padStart(2, '0')}`;
+    };
+
+    const colorPalette = ['#ef4444', '#ffffff', '#000000', '#3b82f6', '#22c55e', '#eab308', '#a855f7'];
+
+    // Dynamically Subdivided & Bezier Curved 3D Arrow Engine
+    const calculate3DArrow = (ann) => {
+      const { 
+        tiltX = 35, tiltY = 25, 
+        baseWidth = 150, shaftWidth = 80, thickness = 60, 
+        headWidth = 240, headLength = 120, fov = 800
+      } = ann;
+
+      const safeX1 = ann.x1 ?? 0;
+      const safeY1 = ann.y1 ?? 0;
+      const safeX2 = ann.x2 ?? 100;
+      const safeY2 = ann.y2 ?? 0;
+      const safeCX = ann.cx ?? (safeX1 + safeX2) / 2;
+      const safeCY = ann.cy ?? (safeY1 + safeY2) / 2;
+
+      const dxScreen = safeX2 - safeX1;
+      const dyScreen = safeY2 - safeY1;
+      const L = Math.max(Math.hypot(dxScreen, dyScreen), 10);
+      const T = thickness;
+      const BW = baseWidth;
+      const SW = shaftWidth;
+      const HW = headWidth;
+      const HL = Math.min(headLength, L * 0.9);
+
+      const yaw = Math.atan2(dyScreen, dxScreen);
+      const dxCp = safeCX - (safeX1 + safeX2) / 2;
+      const dyCp = safeCY - (safeY1 + safeY2) / 2;
+      
+      const localCX = dxCp * Math.cos(-yaw) - dyCp * Math.sin(-yaw);
+      const localCY = dxCp * Math.sin(-yaw) + dyCp * Math.cos(-yaw);
+
+      const applyBend = (px, py) => {
+        if (localCX === 0 && localCY === 0) return [px, py];
+        const t = (px + L/2) / L; 
+        const spineX = (1-t)*(1-t)*(-L/2) + 2*(1-t)*t*localCX + t*t*(L/2);
+        const spineY = 2*(1-t)*t*localCY; 
+        
+        const tanX = 2*(1-t)*(localCX - (-L/2)) + 2*t*(L/2 - localCX);
+        const tanY = 2*(1-t)*(localCY) + 2*t*(-localCY);
+        const tanLen = Math.hypot(tanX, tanY) || 1;
+        
+        const normX = -tanY / tanLen;
+        const normY = tanX / tanLen;
+        
+        return [spineX + normX * py, spineY + normY * py];
+      };
+
+      const steps = 12; 
+      const arrow2D = [];
+      
+      for (let i = 0; i <= steps; i++) {
+        const t = i / steps;
+        const px = -L/2 + t * (L - HL);
+        const py = -BW/2 + t * (-SW/2 - -BW/2);
+        arrow2D.push(applyBend(px, py));
+      }
+      
+      arrow2D.push(applyBend(L/2 - HL, -HW/2)); 
+      arrow2D.push(applyBend(L/2, 0));          
+      arrow2D.push(applyBend(L/2 - HL, HW/2));  
+      
+      for (let i = steps; i >= 0; i--) {
+        const t = i / steps;
+        const px = -L/2 + t * (L - HL);
+        const py = BW/2 + t * (SW/2 - BW/2);
+        arrow2D.push(applyBend(px, py));
+      }
+
+      const N = arrow2D.length;
+      const verts = [];
+      for (let i = 0; i < N; i++) verts.push([arrow2D[i][0], arrow2D[i][1], -T/2]); 
+      for (let i = 0; i < N; i++) verts.push([arrow2D[i][0], arrow2D[i][1], T/2]);  
+      
+      verts.push([-L/2, 0, 0]); 
+      verts.push([L/2, 0, 0]);  
+
+      const faceDefs = [];
+      faceDefs.push(Array.from({length: N}, (_, i) => N - 1 - i)); 
+      faceDefs.push(Array.from({length: N}, (_, i) => N + i));     
+      for (let i = 0; i < N; i++) {
+        const next = (i + 1) % N;
+        faceDefs.push([i, next, N + next, N + i]); 
+      }
+
+      const radX = (tiltX * Math.PI) / 180;
+      const radY = (tiltY * Math.PI) / 180;
+      const cx_ang = Math.cos(radX), sx_ang = Math.sin(radX);
+      const cy_ang = Math.cos(radY), sy_ang = Math.sin(radY);
+
+      const rotVerts = verts.map(v => {
+        let vx = v[0], vy = v[1], vz = v[2];
+        let y1 = vy * cx_ang - vz * sx_ang;
+        let z1 = vy * sx_ang + vz * cx_ang;
+        let x2 = vx * cy_ang + z1 * sy_ang;
+        let z2 = -vx * sy_ang + z1 * cy_ang;
+        return [x2, y1, z2];
+      });
+
+      const cameraZ = 1000;
+      const proj2D = rotVerts.map(v => {
+        const scale = fov / Math.max(10, fov + v[2] + cameraZ);
+        return { x: v[0] * scale, y: v[1] * scale, z: v[2] };
+      });
+
+      const pTail = proj2D[2 * N];
+      const pTip = proj2D[2 * N + 1];
+      const dxProj = pTip.x - pTail.x;
+      const dyProj = pTip.y - pTail.y;
+      const distProj = Math.hypot(dxProj, dyProj) || 1;
+      const angleProj = Math.atan2(dyProj, dxProj);
+
+      const distScreen = Math.hypot(dxScreen, dyScreen) || 1;
+      const angleScreen = Math.atan2(dyScreen, dxScreen);
+      const scale = distScreen / Math.max(0.1, distProj);
+      const angleDiff = angleScreen - angleProj;
+      const cosA = Math.cos(angleDiff);
+      const sinA = Math.sin(angleDiff);
+
+      const lightDir = [0.2, -0.4, 1];
+      const mag = Math.sqrt(lightDir[0]*lightDir[0] + lightDir[1]*lightDir[1] + lightDir[2]*lightDir[2]);
+      const nLight = [lightDir[0]/mag, lightDir[1]/mag, lightDir[2]/mag];
+
+      const projectedFaces = faceDefs.map((faceInds) => {
+        let nx = 0, ny = 0, nz = 0;
+        for (let i = 0; i < faceInds.length; i++) {
+          const curr = rotVerts[faceInds[i]];
+          const next = rotVerts[faceInds[(i + 1) % faceInds.length]];
+          nx += (curr[1] - next[1]) * (curr[2] + next[2]);
+          ny += (curr[2] - next[2]) * (curr[0] + next[0]);
+          nz += (curr[0] - next[0]) * (curr[1] + next[1]);
+        }
+        const nmag = Math.sqrt(nx*nx + ny*ny + nz*nz) || 1;
+        nx /= nmag; ny /= nmag; nz /= nmag;
+
+        if (nz >= 0) return null; 
+
+        const worldNx = nx * cosA - ny * sinA;
+        const worldNy = nx * sinA + ny * cosA;
+        const worldNz = nz; 
+
+        const dot = Math.abs(-worldNx * nLight[0] + -worldNy * nLight[1] + -worldNz * nLight[2]);
+        const intensity = 0.35 + 0.65 * dot;
+
+        const screenPts = faceInds.map(i => {
+          const p = proj2D[i];
+          const lx = p.x - pTail.x;
+          const ly = p.y - pTail.y;
+          const rx = (lx * cosA - ly * sinA) * scale;
+          const ry = (lx * sinA + ly * cosA) * scale;
+          return [safeX1 + rx, safeY1 + ry, p.z];
+        });
+
+        const avgZ = screenPts.reduce((sum, p) => sum + p[2], 0) / screenPts.length;
+        return { pts: screenPts, intensity, avgZ };
+      }).filter(f => f !== null);
+
+      projectedFaces.sort((a, b) => b.avgZ - a.avgZ); 
+      return projectedFaces;
+    };
+
+    // SVG Content Generator
+    const generateSvgContent = (frame) => {
+      return frame.annotations.map(ann => {
+        if (ann.type === 'arrow' || ann.type === 'line') {
+          const marker = ann.type === 'arrow' ? 'url(#arrowhead)' : '';
+          const safeX1 = ann.x1 ?? 0, safeY1 = ann.y1 ?? 0;
+          const safeX2 = ann.x2 ?? 0, safeY2 = ann.y2 ?? 0;
+          const safeCX = ann.cx ?? (safeX1 + safeX2) / 2;
+          const safeCY = ann.cy ?? (safeY1 + safeY2) / 2;
+          return `<path d="M ${safeX1} ${safeY1} Q ${safeCX} ${safeCY} ${safeX2} ${safeY2}" fill="none" stroke="${ann.color}" stroke-width="6" marker-end="${marker}" />`;
+        }
+        if (ann.type === 'cameraArrow') {
+          const faces = calculate3DArrow(ann);
+          const facesSvg = faces.map(f => `<polygon points="${f.pts.map(p => `${p[0]},${p[1]}`).join(' ')}" fill="${adjustColor(ann.color, f.intensity)}" stroke="#000" stroke-width="1.5" stroke-linejoin="round" />`).join('');
+          
+          let labelSvg = '';
+          if (ann.showLabel !== false) {
+            const safeX1 = ann.x1 ?? 0, safeY1 = ann.y1 ?? 0;
+            const safeX2 = ann.x2 ?? 100, safeY2 = ann.y2 ?? 0;
+            const safeCX = ann.cx ?? (safeX1 + safeX2) / 2, safeCY = ann.cy ?? (safeY1 + safeY2) / 2;
+            const t = 0.5;
+            const midX = (1-t)*(1-t)*safeX1 + 2*(1-t)*t*safeCX + t*t*safeX2;
+            const midY = (1-t)*(1-t)*safeY1 + 2*(1-t)*t*safeCY + t*t*safeY2;
+            const rot = Math.atan2(safeY2 - safeY1, safeX2 - safeX1) * 180 / Math.PI;
+            const fontSize = Math.max(16, (ann.shaftWidth || 80) * 0.4);
+            const labelText = ann.labelText || 'CAMERA';
+            labelSvg = `<text x="${midX}" y="${midY}" fill="${ann.labelColor || '#000000'}" font-family="'Architects Daughter', cursive" font-weight="bold" font-size="${fontSize}" text-anchor="middle" dominant-baseline="central" transform="rotate(${rot}, ${midX}, ${midY})">${labelText}</text>`;
+          }
+          return facesSvg + labelSvg;
+        }
+        if (ann.type === 'text') {
+          const isBold = ann.isBold ? 'bold' : 'normal';
+          const isItalic = ann.isItalic ? 'italic' : 'normal';
+          const rot = ann.rotation || 0;
+          const font = "'Architects Daughter', cursive"; 
+          const safeX = ann.x ?? 0, safeY = ann.y ?? 0;
+
+          if (ann.shape === 'normal') {
+            return `<text x="${safeX}" y="${safeY}" fill="${ann.color}" font-family="${font}" font-weight="${isBold}" font-style="${isItalic}" font-size="${ann.fontSize}" transform="rotate(${rot}, ${safeX}, ${safeY})">${ann.text}</text>`;
+          } else {
+            const dy = ann.shape === 'arcUp' ? -100 : 100;
+            const pathId = `export-path-${ann.id}`;
+            return `
+              <g transform="rotate(${rot}, ${safeX}, ${safeY})">
+                <path id="${pathId}" d="M ${safeX-150} ${safeY} Q ${safeX} ${safeY+dy} ${safeX+150} ${safeY}" fill="none" stroke="none" />
+                <text fill="${ann.color}" font-family="${font}" font-weight="${isBold}" font-style="${isItalic}" font-size="${ann.fontSize}">
+                  <textPath href="#${pathId}" startOffset="50%" text-anchor="middle">${ann.text}</textPath>
+                </text>
+              </g>
+            `;
+          }
+        }
+        return '';
+      }).join('');
+    };
+
+    // ==========================================
+    // MAIN APPLICATION
+    // ==========================================
+    const App = () => {
+      const [videoFile, setVideoFile] = useState(null);
+      const [videoSrc, setVideoSrc] = useState(null);
+      const [isPlaying, setIsPlaying] = useState(false);
+      const [duration, setDuration] = useState(0);
+      const [currentTime, setCurrentTime] = useState(0);
+      const [frames, setFrames] = useState([]);
+      const [autoCount, setAutoCount] = useState(5);
+      const [isExtracting, setIsExtracting] = useState(false);
+      
+      const [detailLevel, setDetailLevel] = useState(5); 
+      const [hatchSpread, setHatchSpread] = useState(150); 
+      const [hatchDensity, setHatchDensity] = useState(7); 
+
+      const [isEditorOpen, setIsEditorOpen] = useState(false);
+      const [activeFrameId, setActiveFrameId] = useState(null);
+
+      const [showExportModal, setShowExportModal] = useState(false);
+      const [exportCols, setExportCols] = useState(2);
+      const [exportBorderColor, setExportBorderColor] = useState('#000000');
+      const [exportBorderWidth, setExportBorderWidth] = useState(3);
+      const [isExporting, setIsExporting] = useState(false);
+      const [storyboardTitle, setStoryboardTitle] = useState('');
+
+      const [isFullscreen, setIsFullscreen] = useState(false);
+
+      const videoRef = useRef(null);
+      const canvasRef = useRef(null);
+
+      useEffect(() => {
+        const handleFullscreenChange = () => {
+          setIsFullscreen(!!document.fullscreenElement);
+        };
+        document.addEventListener('fullscreenchange', handleFullscreenChange);
+        return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
+      }, []);
+
+      const toggleFullscreen = () => {
+        if (!document.fullscreenElement) {
+          document.documentElement.requestFullscreen().catch(err => {
+            console.error(`Error attempting to enable fullscreen: ${err.message}`);
+          });
+        } else {
+          if (document.exitFullscreen) {
+            document.exitFullscreen();
+          }
+        }
+      };
+
+      useEffect(() => {
+        const handleKeyDown = (e) => {
+          if (e.target.tagName.toLowerCase() === 'input' || e.target.tagName.toLowerCase() === 'textarea') return;
+          if (e.code === 'Space' && videoRef.current && !isEditorOpen && !showExportModal) {
+            e.preventDefault();
+            if (isPlaying) videoRef.current.pause();
+            else videoRef.current.play();
+          }
+        };
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+      }, [isPlaying, isEditorOpen, showExportModal]);
+
+      const handleFileUpload = (e) => {
+        const file = e.target.files[0];
+        if (file && file.type.startsWith('video/')) {
+          setVideoFile(file);
+          setVideoSrc(URL.createObjectURL(file));
+          setFrames([]); 
+        }
+      };
+
+      const processFrame = () => {
+        return new Promise((resolve) => {
+          const video = videoRef.current;
+          const canvas = canvasRef.current;
+          if (!video || !canvas) {
+            resolve(null);
+            return;
+          }
+
+          const MAX_WIDTH = 1920;
+          let targetWidth = video.videoWidth || 1920;
+          let targetHeight = video.videoHeight || 1080;
+          
+          if (targetWidth > MAX_WIDTH) {
+            const scale = MAX_WIDTH / targetWidth;
+            targetWidth = MAX_WIDTH;
+            targetHeight = Math.floor(targetHeight * scale);
+          }
+
+          canvas.width = targetWidth;
+          canvas.height = targetHeight;
+          const ctx = canvas.getContext('2d', { willReadFrequently: true });
+          ctx.drawImage(video, 0, 0, targetWidth, targetHeight);
+
+          const imgData = ctx.getImageData(0, 0, targetWidth, targetHeight);
+          const data = imgData.data;
+          const gray = new Float32Array(targetWidth * targetHeight);
+          for (let i = 0; i < data.length; i += 4) {
+            gray[i / 4] = data[i] * 0.299 + data[i + 1] * 0.587 + data[i + 2] * 0.114;
+          }
+
+          const sobelData = new Uint8ClampedArray(data.length);
+          sobelData.fill(255); 
+          const threshold = 120 - (detailLevel * 10);
+          const spacing = 12 - hatchDensity; 
+
+          for (let y = 1; y < targetHeight - 1; y++) {
+            for (let x = 1; x < targetWidth - 1; x++) {
+              const i = (y * targetWidth + x);
+              const tl = gray[i - targetWidth - 1];
+              const tc = gray[i - targetWidth];
+              const tr = gray[i - targetWidth + 1];
+              const cl = gray[i - 1];
+              const cr = gray[i + 1];
+              const bl = gray[i + targetWidth - 1];
+              const bc = gray[i + targetWidth];
+              const br = gray[i + targetWidth + 1];
+
+              const pixelX = (tr + 2*cr + br) - (tl + 2*cl + bl);
+              const pixelY = (bl + 2*bc + br) - (tl + 2*tc + tr);
+              const magnitude = Math.sqrt(pixelX * pixelX + pixelY * pixelY);
+
+              let pColor = 255; 
+              if (magnitude > threshold) {
+                pColor = 0; 
+              } else {
+                const luma = gray[i];
+                if (luma < hatchSpread) {
+                  if ((x - y + targetHeight * 2) % spacing === 0) {
+                    const ratio = luma / hatchSpread;
+                    pColor = Math.floor(120 + (ratio * 110));
+                  }
+                }
+              }
+              const idx = i * 4;
+              sobelData[idx] = pColor;     
+              sobelData[idx+1] = pColor;   
+              sobelData[idx+2] = pColor;   
+            }
+          }
+
+          ctx.putImageData(new ImageData(sobelData, targetWidth, targetHeight), 0, 0);
+          
+          canvas.toBlob((blob) => {
+            if (!blob) {
+              resolve(null);
+              return;
+            }
+            resolve({ 
+              dataUrl: URL.createObjectURL(blob), 
+              width: targetWidth, 
+              height: targetHeight 
+            });
+          }, 'image/jpeg', 0.85); 
+        });
+      };
+
+      const captureManual = () => {
+        if (!videoSrc) return;
+        setIsExtracting(true);
+        setTimeout(async () => {
+          const processed = await processFrame();
+          if (processed) {
+            setFrames(prev => [...prev, {
+              id: Date.now().toString(),
+              dataUrl: processed.dataUrl,
+              timestamp: videoRef.current.currentTime,
+              width: processed.width,
+              height: processed.height,
+              annotations: [],
+              description: '' 
+            }]);
+          }
+          setIsExtracting(false);
+        }, 50);
+      };
+
+      const seekVideo = (time) => new Promise((resolve) => {
+        const video = videoRef.current;
+        const onSeeked = () => {
+          video.removeEventListener('seeked', onSeeked);
+          setTimeout(resolve, 100); 
+        };
+        video.addEventListener('seeked', onSeeked);
+        video.currentTime = time;
+      });
+
+      const captureAuto = async () => {
+        if (!videoSrc || !videoRef.current) return;
+        setIsExtracting(true);
+        const wasPlaying = !videoRef.current.paused;
+        if (wasPlaying) videoRef.current.pause();
+
+        const originalTime = videoRef.current.currentTime;
+        const newFrames = [];
+        const interval = duration / autoCount;
+
+        for (let i = 0; i < autoCount; i++) {
+          const targetTime = (interval / 2) + (i * interval);
+          await seekVideo(targetTime);
+          const processed = await processFrame();
+          if (processed) {
+            newFrames.push({
+              id: `auto-${Date.now()}-${i}`,
+              dataUrl: processed.dataUrl,
+              timestamp: targetTime,
+              width: processed.width,
+              height: processed.height,
+              annotations: [],
+              description: '' 
+            });
+          }
+        }
+
+        setFrames(prev => [...prev, ...newFrames]);
+        await seekVideo(originalTime);
+        if (wasPlaying) videoRef.current.play();
+        setIsExtracting(false);
+      };
+
+      const reprocessAllFrames = async () => {
+        if (!videoSrc || !videoRef.current || frames.length === 0) return;
+        setIsExtracting(true);
+        const wasPlaying = !videoRef.current.paused;
+        if (wasPlaying) videoRef.current.pause();
+
+        const originalTime = videoRef.current.currentTime;
+        const updatedFrames = [];
+
+        for (const frame of frames) {
+          await seekVideo(frame.timestamp);
+          const processed = await processFrame();
+          updatedFrames.push({
+            ...frame,
+            dataUrl: processed ? processed.dataUrl : frame.dataUrl,
+            width: processed ? processed.width : frame.width,
+            height: processed ? processed.height : frame.height
+          });
+        }
+
+        setFrames(updatedFrames);
+        await seekVideo(originalTime);
+        if (wasPlaying) videoRef.current.play();
+        setIsExtracting(false);
+      };
+
+      const updateFrameAnnotations = (frameId, newAnnotations) => {
+        setFrames(prev => prev.map(f => f.id === frameId ? { ...f, annotations: newAnnotations } : f));
+      };
+      
+      const updateFrameDescription = (frameId, text) => {
+        setFrames(prev => prev.map(f => f.id === frameId ? { ...f, description: text } : f));
+      };
+
+      // --- Export Engine Methods ---
+      const triggerDownload = (dataUrl, filename) => {
+        const a = document.createElement('a');
+        a.href = dataUrl;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+      };
+
+      const renderFrameToCanvas = async (frame, index) => {
+        try { await document.fonts.load('36px "Architects Daughter"'); } catch (e) {}
+
+        const exportScale = 2; 
+        const canvas = document.createElement('canvas');
+        const w = frame.width + OOB_MARGIN * 2;
+        
+        const tempCtx = canvas.getContext('2d');
+        tempCtx.font = '32px "Architects Daughter", cursive';
+        const maxWidth = frame.width;
+        let descLines = 0;
+        if (frame.description) {
+          descLines = 1;
+          const words = frame.description.split(' ');
+          let line = '';
+          for (let n = 0; n < words.length; n++) {
+            let testLine = line + words[n] + ' ';
+            if (tempCtx.measureText(testLine).width > maxWidth && n > 0) {
+              descLines++;
+              line = words[n] + ' ';
+            } else {
+              line = testLine;
+            }
+          }
+        }
+        
+        const descHeight = 60 + (descLines > 0 ? (descLines * 40) + 20 : 0);
+        const h = frame.height + OOB_MARGIN * 2 + descHeight;
+        
+        canvas.width = w * exportScale;
+        canvas.height = h * exportScale;
+        const ctx = canvas.getContext('2d');
+
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        ctx.scale(exportScale, exportScale);
+
+        const img = new Image();
+        await new Promise((resolve) => {
+          img.onload = resolve;
+          img.onerror = resolve; 
+          img.src = frame.dataUrl;
+        });
+        ctx.drawImage(img, OOB_MARGIN, OOB_MARGIN, frame.width, frame.height);
+
+        if (exportBorderWidth > 0) {
+          ctx.strokeStyle = exportBorderColor;
+          ctx.lineWidth = exportBorderWidth;
+          ctx.strokeRect(OOB_MARGIN, OOB_MARGIN, frame.width, frame.height);
+        }
+
+        if (frame.annotations && frame.annotations.length > 0) {
+          const svgContent = generateSvgContent(frame);
+          
+          const fontStyle = architectsDaughterBase64 
+            ? `@font-face { font-family: 'Architects Daughter'; src: url(${architectsDaughterBase64}) format('woff2'); }`
+            : `@import url('https://fonts.googleapis.com/css2?family=Architects+Daughter&display=swap');`;
+
+          const svgString = `
+            <svg xmlns="http://www.w3.org/2000/svg" width="${w * exportScale}" height="${(frame.height + OOB_MARGIN * 2) * exportScale}" viewBox="${-OOB_MARGIN} ${-OOB_MARGIN} ${w} ${frame.height + OOB_MARGIN * 2}">
+              <style>${fontStyle}</style>
+              <defs>
+                <marker id="arrowhead" markerWidth="8" markerHeight="8" refX="4" refY="4" orient="auto">
+                  <polygon points="0 0, 8 4, 0 8" fill="#ef4444" />
+                </marker>
+              </defs>
+              ${svgContent}
+            </svg>
+          `;
+          const svgBlob = new Blob([svgString], { type: 'image/svg+xml;charset=utf-8' });
+          const DOMURL = window.URL || window.webkitURL || window;
+          const url = DOMURL.createObjectURL(svgBlob);
+          
+          const svgImg = new Image();
+          await new Promise((resolve) => {
+            svgImg.onload = resolve;
+            svgImg.onerror = (e) => {
+              console.error("SVG Failed to render during export. Continuing safely.", e);
+              resolve(); 
+            };
+            svgImg.src = url;
+          });
+          ctx.drawImage(svgImg, 0, 0, w, frame.height + OOB_MARGIN * 2); 
+          DOMURL.revokeObjectURL(url);
+        }
+
+        ctx.fillStyle = '#000000';
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'top';
+
+        ctx.font = 'bold 36px "Architects Daughter", cursive';
+        ctx.fillText(`Shot #${index + 1}`, OOB_MARGIN, frame.height + OOB_MARGIN * 2 + 10);
+
+        if (frame.description) {
+          ctx.font = '32px "Architects Daughter", cursive';
+          const words = frame.description.split(' ');
+          let line = '';
+          let textY = frame.height + OOB_MARGIN * 2 + 60; 
+          
+          for (let n = 0; n < words.length; n++) {
+            let testLine = line + words[n] + ' ';
+            let metrics = ctx.measureText(testLine);
+            if (metrics.width > maxWidth && n > 0) {
+              ctx.fillText(line, OOB_MARGIN, textY);
+              line = words[n] + ' ';
+              textY += 40; 
+            } else {
+              line = testLine;
+            }
+          }
+          ctx.fillText(line, OOB_MARGIN, textY);
+        }
+
+        return { canvas, w, h };
+      };
+
+      const downloadIndividualFrames = async () => {
+        setIsExporting(true);
+        try {
+          for (let i = 0; i < frames.length; i++) {
+            const result = await renderFrameToCanvas(frames[i], i);
+            triggerDownload(result.canvas.toDataURL('image/png'), `Storyboard-Frame-${i+1}.png`);
+            await new Promise(r => setTimeout(r, 200)); 
+          }
+        } finally {
+          setIsExporting(false);
+        }
+      };
+
+      const downloadBoard = async () => {
+        if (frames.length === 0) return;
+        setIsExporting(true);
+        try {
+          const exportScale = 2; 
+          const gap = 60 * exportScale;
+          const frameCanvases = await Promise.all(frames.map((f, i) => renderFrameToCanvas(f, i)));
+          
+          const maxW = Math.max(...frameCanvases.map(c => c.w));
+          const maxH = Math.max(...frameCanvases.map(c => c.h));
+          
+          const rows = Math.ceil(frames.length / exportCols);
+          const headerHeight = storyboardTitle ? 180 * exportScale : 0; 
+          
+          const boardW = (maxW * exportCols) + (gap * (exportCols + 1));
+          const boardH = headerHeight + (maxH * rows) + (gap * (rows + 1));
+          
+          const boardCanvas = document.createElement('canvas');
+          boardCanvas.width = boardW;
+          boardCanvas.height = boardH;
+          const bCtx = boardCanvas.getContext('2d');
+          
+          bCtx.fillStyle = '#f3f4f6'; 
+          bCtx.fillRect(0, 0, boardW, boardH);
+
+          if (storyboardTitle) {
+            bCtx.fillStyle = '#000000';
+            bCtx.font = `bold ${60 * exportScale}px "Architects Daughter", cursive`;
+            bCtx.textAlign = 'center';
+            bCtx.textBaseline = 'top';
+            bCtx.fillText(storyboardTitle, boardW / 2, 60 * exportScale);
+            
+            const metrics = bCtx.measureText(storyboardTitle);
+            bCtx.lineWidth = 5 * exportScale;
+            bCtx.strokeStyle = '#000000';
+            bCtx.beginPath();
+            bCtx.moveTo((boardW / 2) - (metrics.width / 2) - 10 * exportScale, 140 * exportScale);
+            bCtx.lineTo((boardW / 2) + (metrics.width / 2) + 10 * exportScale, 140 * exportScale);
+            bCtx.stroke();
+          }
+          
+          frames.forEach((_, i) => {
+            const c = i % exportCols;
+            const r = Math.floor(i / exportCols);
+            const x = gap + c * (maxW + gap);
+            const y = headerHeight + gap + r * (maxH + gap); 
+            const offsetX = (maxW - frameCanvases[i].w) / 2;
+            
+            bCtx.drawImage(frameCanvases[i].canvas, 0, 0, frameCanvases[i].canvas.width, frameCanvases[i].canvas.height, x + offsetX, y, frameCanvases[i].w, frameCanvases[i].h);
+          });
+          
+          triggerDownload(boardCanvas.toDataURL('image/jpeg', 0.95), `Storyboard-Sheet.jpg`);
+        } finally {
+          setIsExporting(false);
+        }
+      };
+
+      return (
+        <div className="min-h-screen bg-gray-950 text-gray-100 font-sans flex flex-col custom-scrollbar overflow-y-auto">
+          <canvas ref={canvasRef} className="hidden" />
+
+          {/* EXPORT MODAL */}
+          {showExportModal && (
+            <div className="fixed inset-0 z-[100] bg-black/90 backdrop-blur-sm flex items-center justify-center p-6">
+              <div className="bg-gray-900 border border-gray-800 rounded-2xl max-w-4xl w-full flex flex-col max-h-[90vh] shadow-2xl overflow-hidden">
+                <div className="p-6 border-b border-gray-800 flex justify-between items-center bg-gray-950">
+                  <h2 className="text-xl font-bold flex items-center gap-2"><LayoutGrid className="w-5 h-5 text-indigo-400" /> Export Storyboard Studio</h2>
+                  <div className="flex items-center gap-4">
+                    <button onClick={() => setShowExportModal(false)} className="text-sm bg-gray-800 hover:bg-gray-700 px-4 py-2 rounded-lg text-white font-medium transition">
+                      Back to Studio
+                    </button>
+                    <button onClick={() => setShowExportModal(false)} className="text-gray-400 hover:text-white"><X className="w-6 h-6" /></button>
+                  </div>
+                </div>
+                
+                <div className="flex-1 overflow-y-auto p-6 flex flex-col md:flex-row gap-8 custom-scrollbar">
+                  <div className="w-full md:w-64 space-y-6 flex-shrink-0">
+                    <div>
+                      <label className="text-sm text-gray-400 block mb-2 font-medium">Storyboard Title</label>
+                      <input 
+                        type="text" 
+                        value={storyboardTitle} 
+                        onChange={(e) => setStoryboardTitle(e.target.value)} 
+                        placeholder="e.g. Action Sequence 1" 
+                        className="w-full bg-gray-800 border border-gray-700 rounded p-2 text-white font-medium focus:outline-none focus:border-indigo-500" 
+                      />
+                    </div>
+                    <div>
+                      <label className="text-sm text-gray-400 block mb-2 font-medium">Grid Columns</label>
+                      <input type="range" min="1" max="5" value={exportCols} onChange={(e) => setExportCols(parseInt(e.target.value))} className="w-full accent-indigo-500" />
+                      <div className="text-right text-xs text-indigo-400 font-mono mt-1">{exportCols} Columns</div>
+                    </div>
+                    <div>
+                      <label className="text-sm text-gray-400 block mb-2 font-medium">Frame Border Thickness</label>
+                      <input type="range" min="3" max="15" value={exportBorderWidth} onChange={(e) => setExportBorderWidth(parseInt(e.target.value))} className="w-full accent-indigo-500" />
+                      <div className="text-right text-xs text-indigo-400 font-mono mt-1">{exportBorderWidth}px</div>
+                    </div>
+                    <div>
+                      <label className="text-sm text-gray-400 block mb-2 font-medium">Frame Border Color</label>
+                      <input type="color" value={exportBorderColor} onChange={(e) => setExportBorderColor(e.target.value)} className="w-full h-10 rounded cursor-pointer bg-transparent" />
+                    </div>
+                    <div className="pt-6 space-y-3 border-t border-gray-800">
+                      <button onClick={downloadIndividualFrames} disabled={isExporting} className="w-full bg-gray-800 hover:bg-gray-700 text-white py-3 rounded-lg font-medium flex items-center justify-center gap-2 transition disabled:opacity-50">
+                        <Download className="w-4 h-4" /> Download Rendered Frames Individually
+                      </button>
+                      <button onClick={downloadBoard} disabled={isExporting} className="w-full bg-indigo-600 hover:bg-indigo-500 text-white py-3 rounded-lg font-medium flex items-center justify-center gap-2 shadow-lg transition disabled:opacity-50 transform hover:-translate-y-0.5">
+                        {isExporting ? <RefreshCw className="w-4 h-4 animate-spin" /> : <LayoutGrid className="w-4 h-4" />} Export Board Sheet
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="flex-1 bg-gray-800 rounded-xl p-6 overflow-auto border border-gray-700 custom-scrollbar">
+                    <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-4">Live Layout Preview</h3>
+                    <div 
+                      className="grid gap-4 bg-gray-200 p-4 rounded"
+                      style={{ gridTemplateColumns: `repeat(${exportCols}, minmax(0, 1fr))` }}
+                    >
+                      {frames.map((f, i) => (
+                        <div key={i} className="bg-white shadow flex flex-col items-center p-2">
+                          <div className="w-full aspect-video bg-gray-300" style={{ border: `${exportBorderWidth}px solid ${exportBorderColor}` }}></div>
+                          {f.description && <div className="h-2 w-3/4 bg-gray-400 mt-2 rounded"></div>}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {!isEditorOpen ? (
+            <>
+              <header className="bg-gray-900 border-b border-gray-800 p-4 flex items-center justify-between z-10">
+                <div className="flex items-center gap-3">
+                  <div className="bg-indigo-600 p-2 rounded-lg">
+                    <Film className="w-5 h-5 text-white" />
+                  </div>
+                  <h1 className="text-xl font-bold bg-gradient-to-r from-white to-gray-400 bg-clip-text text-transparent flex items-baseline gap-2">
+                    Storyboard Studio <span className="text-xs font-normal text-indigo-400">{APP_VERSION}</span>
+                  </h1>
+                </div>
+                <div className="flex items-center gap-4">
+                  <button onClick={toggleFullscreen} className="text-gray-400 hover:text-white transition" title="Toggle Fullscreen">
+                    {isFullscreen ? <Minimize className="w-5 h-5" /> : <Maximize className="w-5 h-5" />}
+                  </button>
+                  <label className="cursor-pointer bg-white text-gray-900 hover:bg-gray-200 px-4 py-2 rounded-md font-medium text-sm flex items-center gap-2 transition-colors">
+                    <Upload className="w-4 h-4" /> Upload Video
+                    <input type="file" accept="video/*" className="hidden" onChange={handleFileUpload} />
+                  </label>
+                </div>
+              </header>
+
+              <main className="flex-1 flex overflow-hidden">
+                <div className="flex-1 p-6 flex flex-col overflow-y-auto custom-scrollbar">
+                  {!videoSrc ? (
+                    <div className="flex-1 border-2 border-dashed border-gray-700 rounded-xl flex flex-col items-center justify-center text-gray-500 bg-gray-900/50 min-h-[400px]">
+                      <Upload className="w-12 h-12 mb-4 opacity-50" />
+                      <p className="text-lg font-medium text-gray-400">No Video Loaded</p>
+                      <p className="text-sm mt-2">Upload a video to start creating your storyboard.</p>
+                    </div>
+                  ) : (
+                    <div className="flex flex-col gap-6 max-w-5xl mx-auto w-full">
+                      <div className="bg-gray-900 rounded-xl overflow-hidden border border-gray-800 shadow-2xl relative group">
+                        <video
+                          ref={videoRef}
+                          src={videoSrc}
+                          className="w-full aspect-video bg-black object-contain"
+                          onLoadedMetadata={() => setDuration(videoRef.current.duration)}
+                          onTimeUpdate={() => setCurrentTime(videoRef.current.currentTime)}
+                          onPlay={() => setIsPlaying(true)}
+                          onPause={() => setIsPlaying(false)}
+                          onClick={() => isPlaying ? videoRef.current.pause() : videoRef.current.play()}
+                        />
+                        <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-4 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-4">
+                          <button onClick={() => isPlaying ? videoRef.current.pause() : videoRef.current.play()} className="text-white">
+                            {isPlaying ? <Pause className="w-6 h-6" /> : <Play className="w-6 h-6" />}
+                          </button>
+                          <div className="text-sm font-mono">{formatTime(currentTime)} / {formatTime(duration)}</div>
+                          <input 
+                            type="range" min="0" max={duration || 100} value={currentTime} 
+                            onChange={(e) => videoRef.current.currentTime = parseFloat(e.target.value)}
+                            className="flex-1 h-1.5 bg-gray-600 rounded-lg appearance-none cursor-pointer accent-indigo-500"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div className="bg-gray-900 border border-gray-800 p-5 rounded-xl flex flex-col justify-between">
+                          <div>
+                            <h2 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-4 flex items-center gap-2">
+                              <Camera className="w-4 h-4" /> Manual Capture
+                            </h2>
+                            <p className="text-sm text-gray-500 mb-6">Hit spacebar to pause, then capture the exact frame.</p>
+                          </div>
+                          <button onClick={captureManual} className="w-full bg-indigo-600 hover:bg-indigo-500 text-white py-3 rounded-lg font-medium flex items-center justify-center gap-2 transition">
+                            <Camera className="w-5 h-5" /> Capture Current Frame
+                          </button>
+                        </div>
+
+                        <div className="bg-gray-900 border border-gray-800 p-5 rounded-xl relative">
+                          {isExtracting && (
+                            <div className="absolute inset-0 bg-gray-900/80 backdrop-blur-sm z-10 flex flex-col items-center justify-center rounded-xl">
+                              <RefreshCw className="w-8 h-8 text-indigo-500 animate-spin mb-2" />
+                              <p className="text-sm text-indigo-400 font-medium">Processing...</p>
+                            </div>
+                          )}
+                          <h2 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-4 flex items-center gap-2">
+                            <Settings className="w-4 h-4" /> Extract & Style Settings
+                          </h2>
+                          <div className="grid grid-cols-2 gap-4 mb-4">
+                            <div>
+                              <label className="text-xs text-gray-400">Auto Frames</label>
+                              <input type="range" min="1" max="20" value={autoCount} onChange={(e) => setAutoCount(parseInt(e.target.value))} className="w-full accent-indigo-500"/>
+                            </div>
+                            <div>
+                              <label className="text-xs text-gray-400 flex justify-between">Sketch Detail {frames.length > 0 && <span className="text-[10px] text-teal-500">Auto-renders</span>}</label>
+                              <input type="range" min="1" max="10" value={detailLevel} onChange={(e) => setDetailLevel(parseInt(e.target.value))} onPointerUp={reprocessAllFrames} className="w-full accent-teal-500"/>
+                            </div>
+                            <div>
+                              <label className="text-xs text-gray-400">Shading Spread</label>
+                              <input type="range" min="0" max="255" value={hatchSpread} onChange={(e) => setHatchSpread(parseInt(e.target.value))} onPointerUp={reprocessAllFrames} className="w-full accent-blue-500"/>
+                            </div>
+                            <div>
+                              <label className="text-xs text-gray-400">Shading Density</label>
+                              <input type="range" min="1" max="10" value={hatchDensity} onChange={(e) => setHatchDensity(parseInt(e.target.value))} onPointerUp={reprocessAllFrames} className="w-full accent-blue-500"/>
+                            </div>
+                          </div>
+                          <button onClick={captureAuto} disabled={isExtracting} className="w-full bg-white text-gray-900 hover:bg-gray-200 py-3 rounded-lg font-medium flex items-center justify-center gap-2 transition disabled:opacity-50">
+                             <ImageIcon className="w-5 h-5" /> Auto-Generate Sequence
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                <div className="w-80 bg-gray-900 border-l border-gray-800 flex flex-col z-10 flex-shrink-0">
+                  <div className="p-4 border-b border-gray-800 flex flex-col gap-3">
+                    <div className="flex items-center justify-between">
+                      <h2 className="font-semibold text-gray-200 flex items-center gap-2">
+                        Tray <span className="bg-indigo-600 text-xs px-2 py-0.5 rounded-full">{frames.length}</span>
+                      </h2>
+                      {frames.length > 0 && (
+                        <button onClick={() => setShowExportModal(true)} className="text-xs bg-gray-800 hover:bg-gray-700 px-2 py-1 rounded text-white font-medium flex items-center gap-1 transition">
+                          <LayoutGrid className="w-3 h-3" /> Export Studio
+                        </button>
+                      )}
+                    </div>
+                    {frames.length > 0 && (
+                      <button 
+                        onClick={() => {
+                          setActiveFrameId(frames[0].id);
+                          setIsEditorOpen(true);
+                        }}
+                        className="w-full py-2 px-3 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white rounded-lg font-medium flex items-center justify-center gap-2 shadow-lg transition transform hover:-translate-y-0.5"
+                      >
+                        <Edit3 className="w-4 h-4" /> Open Editor Mode
+                      </button>
+                    )}
+                  </div>
+                  
+                  <div className="flex-1 overflow-y-auto p-4 space-y-4 custom-scrollbar">
+                    {frames.map((frame, index) => (
+                      <div key={frame.id} className="relative bg-black rounded-lg overflow-hidden border border-gray-700 group cursor-pointer hover:border-indigo-500 transition-colors">
+                        <div className="absolute top-1 left-1 bg-black/80 text-[10px] font-mono px-1.5 py-0.5 rounded text-gray-300 z-10">
+                          Shot {index + 1}
+                        </div>
+                        {frame.annotations.length > 0 && (
+                          <div className="absolute top-1 right-1 bg-purple-600/90 text-[10px] px-1.5 py-0.5 rounded text-white z-10 flex gap-1 items-center">
+                            <TypeIcon className="w-3 h-3"/> Edited
+                          </div>
+                        )}
+                        <img src={frame.dataUrl} alt="Frame" className="w-full aspect-video object-cover" />
+                        <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2 backdrop-blur-sm">
+                           <button onClick={() => { setActiveFrameId(frame.id); setIsEditorOpen(true); }} className="p-2 bg-indigo-500 text-white rounded-full hover:bg-indigo-400">
+                             <Edit3 className="w-4 h-4" />
+                           </button>
+                           <button onClick={() => setFrames(frames.filter(f => f.id !== frame.id))} className="p-2 bg-red-500 text-white rounded-full hover:bg-red-400">
+                             <Trash2 className="w-4 h-4" />
+                           </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </main>
+            </>
+          ) : (
+            <StoryboardEditor 
+              frames={frames} 
+              activeFrameId={activeFrameId} 
+              setActiveFrameId={setActiveFrameId}
+              onClose={() => setIsEditorOpen(false)} 
+              updateFrameAnnotations={updateFrameAnnotations}
+              updateFrameDescription={updateFrameDescription}
+              setShowExportModal={setShowExportModal}
+              toggleFullscreen={toggleFullscreen}
+              isFullscreen={isFullscreen}
+            />
+          )}
+        </div>
+      );
+    };
+
+    const StoryboardEditor = ({ frames, activeFrameId, setActiveFrameId, onClose, updateFrameAnnotations, updateFrameDescription, setShowExportModal, toggleFullscreen, isFullscreen }) => {
+      const frame = frames.find(f => f.id === activeFrameId);
+      const [tool, setTool] = useState('select'); 
+      const [annotations, setAnnotations] = useState(frame ? frame.annotations : []);
+      const [selectedId, setSelectedId] = useState(null);
+      const [motionMenuOpen, setMotionMenuOpen] = useState(false);
+      
+      const [isDragging, setIsDragging] = useState(false);
+      const [dragType, setDragType] = useState(null); 
+      const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
+      const svgRef = useRef(null);
+
+      useEffect(() => {
+        if (frame) setAnnotations(frame.annotations);
+        setSelectedId(null);
+      }, [activeFrameId]);
+
+      useEffect(() => {
+        if (frame && annotations !== frame.annotations) {
+          updateFrameAnnotations(activeFrameId, annotations);
+        }
+      }, [annotations]);
+
+      const handleToolSelect = (newTool) => {
+        setTool(newTool);
+        setSelectedId(null);
+      };
+
+      const getMouseCoords = (e) => {
+        const svg = svgRef.current;
+        if (!svg) return { x: 0, y: 0 };
+        const CTM = svg.getScreenCTM();
+        if (!CTM || CTM.a === 0 || CTM.d === 0) return { x: e.clientX, y: e.clientY };
+        return {
+          x: (e.clientX - CTM.e) / CTM.a,
+          y: (e.clientY - CTM.f) / CTM.d
+        };
+      };
+
+      const handlePointerDown = (e) => {
+        const { x, y } = getMouseCoords(e);
+        
+        if (tool === 'text') {
+          const newId = `txt-${Date.now()}`;
+          setAnnotations(prev => [...prev, {
+            id: newId, type: 'text', text: 'STORY TEXT', 
+            x, y, color: '#ef4444', fontSize: 48, shape: 'normal',
+            fontFamily: 'Architects Daughter, cursive', isBold: false, isItalic: false, rotation: 0
+          }]);
+          setSelectedId(newId);
+          setTool('select');
+          return;
+        }
+
+        if (tool === 'arrow' || tool === 'line') {
+          const newId = `shape-${Date.now()}`;
+          setAnnotations(prev => [...prev, {
+            id: newId, type: tool,
+            x1: x, y1: y, x2: x, y2: y, cx: x, cy: y, 
+            color: '#ef4444'
+          }]);
+          setSelectedId(newId);
+          setIsDragging(true);
+          setDragType('draw'); 
+          return;
+        }
+
+        if (tool === 'cameraArrow') {
+          const newId = `shape-${Date.now()}`;
+          setAnnotations(prev => [...prev, {
+            id: newId, type: 'cameraArrow',
+            x1: x, y1: y, x2: x, y2: y, cx: x, cy: y, 
+            tiltX: 35, tiltY: 25, 
+            baseWidth: 150, shaftWidth: 80, thickness: 60, 
+            headWidth: 240, headLength: 120, fov: 800,
+            showLabel: true, labelText: 'CAMERA', labelColor: '#000000',
+            color: '#ffffff'
+          }]);
+          setSelectedId(newId);
+          setIsDragging(true);
+          setDragType('cameraDraw');
+          return;
+        }
+
+        if (tool === 'select' && e.target.tagName === 'svg') {
+          setSelectedId(null);
+          setMotionMenuOpen(false); 
+        }
+      };
+
+      const handlePointerMove = (e) => {
+        if (!isDragging || !selectedId) return;
+        const { x, y } = getMouseCoords(e);
+
+        setAnnotations(prev => prev.map(ann => {
+          if (ann.id !== selectedId) return ann;
+
+          if (ann.type === 'arrow' || ann.type === 'line' || ann.type === 'cameraArrow') {
+            if (dragType === 'cameraDraw') {
+              return { ...ann, x2: x, y2: y, cx: ((ann.x1 ?? 0) + x) / 2, cy: ((ann.y1 ?? 0) + y) / 2 };
+            }
+            if (dragType === 'draw') {
+              return { ...ann, x2: x, y2: y, cx: ((ann.x1 ?? 0) + x) / 2, cy: ((ann.y1 ?? 0) + y) / 2 };
+            }
+            if (dragType === 'end') return { ...ann, x2: x, y2: y };
+            if (dragType === 'start') return { ...ann, x1: x, y1: y };
+            if (dragType === 'cp') return { ...ann, cx: x, cy: y };
+          }
+
+          if (ann.type === 'text' && dragType === 'move') {
+            return { ...ann, x: x + dragOffset.x, y: y + dragOffset.y };
+          }
+          return ann;
+        }));
+      };
+
+      const handlePointerUp = () => {
+        if (tool === 'arrow' || tool === 'line' || tool === 'cameraArrow') {
+          setTool('select'); 
+        }
+        setIsDragging(false);
+        setDragType(null);
+      };
+
+      const selectedItem = annotations.find(a => a.id === selectedId);
+
+      if (!frame) return null;
+
+      return (
+        <div className="fixed inset-0 z-50 bg-gray-900 flex flex-col font-sans">
+          <div className="h-16 bg-gray-950 border-b border-gray-800 flex items-center justify-between px-6 flex-shrink-0 z-30">
+            <div className="flex items-center gap-6">
+              <button onClick={onClose} className="text-gray-400 hover:text-white flex items-center gap-2">
+                <X className="w-5 h-5" /> Exit Editor
+              </button>
+              
+              <div className="h-8 w-px bg-gray-800" />
+
+              <div className="flex items-center gap-2 bg-gray-900 p-1 rounded-lg">
+                <button 
+                  onClick={() => handleToolSelect('select')} 
+                  className={`p-2 rounded flex items-center gap-2 text-sm font-medium transition ${tool === 'select' ? 'bg-indigo-600 text-white' : 'text-gray-400 hover:bg-gray-800'}`}
+                  title="Select & Move"
+                >
+                  <MousePointer2 className="w-4 h-4" /> Select
+                </button>
+                <div className="relative">
+                  <button 
+                    onClick={() => setMotionMenuOpen(!motionMenuOpen)}
+                    className={`p-2 rounded flex items-center gap-2 text-sm font-medium transition ${(tool === 'arrow' || tool === 'line' || tool === 'cameraArrow') ? 'bg-indigo-600 text-white' : 'text-gray-400 hover:bg-gray-800'}`}
+                  >
+                    <Navigation className="w-4 h-4" /> Motion Tools
+                  </button>
+                  {motionMenuOpen && (
+                    <div className="absolute top-full left-0 mt-2 bg-gray-800 border border-gray-700 rounded-lg p-2 shadow-2xl z-50 flex flex-col gap-1 w-48">
+                      <button onClick={() => { handleToolSelect('arrow'); setMotionMenuOpen(false); }} className="text-left px-3 py-2 text-sm text-gray-300 hover:bg-gray-700 rounded flex items-center gap-2">
+                        <ArrowUpRight className="w-4 h-4"/> Standard Arrow
+                      </button>
+                      <button onClick={() => { handleToolSelect('cameraArrow'); setMotionMenuOpen(false); }} className="text-left px-3 py-2 text-sm text-gray-300 hover:bg-gray-700 rounded flex items-center gap-2">
+                        <Move className="w-4 h-4"/> Camera Arrow (3D)
+                      </button>
+                      <button onClick={() => { handleToolSelect('line'); setMotionMenuOpen(false); }} className="text-left px-3 py-2 text-sm text-gray-300 hover:bg-gray-700 rounded flex items-center gap-2">
+                        <Minus className="w-4 h-4"/> Simple Line
+                      </button>
+                    </div>
+                  )}
+                </div>
+                <button 
+                  onClick={() => handleToolSelect('text')} 
+                  className={`p-2 rounded flex items-center gap-2 text-sm font-medium transition ${tool === 'text' ? 'bg-indigo-600 text-white' : 'text-gray-400 hover:bg-gray-800'}`}
+                >
+                  <TypeIcon className="w-4 h-4" /> Add Text
+                </button>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-4">
+              <button onClick={toggleFullscreen} className="text-gray-400 hover:text-white transition" title="Toggle Fullscreen">
+                {isFullscreen ? <Minimize className="w-5 h-5" /> : <Maximize className="w-5 h-5" />}
+              </button>
+              <button 
+                onClick={() => setShowExportModal(true)}
+                className="bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 rounded font-medium flex items-center gap-2 transition shadow-lg"
+              >
+                <LayoutGrid className="w-4 h-4" /> Export Studio
+              </button>
+            </div>
+          </div>
+
+          <div className="flex-1 overflow-hidden flex bg-gray-950 relative">
+            <div className="flex-1 flex flex-col items-center p-8 overflow-auto relative z-10 custom-scrollbar">
+              
+              <div className="w-full max-w-5xl flex flex-col items-center gap-6">
+                <div 
+                  className="relative w-full bg-white shadow-2xl flex-shrink-0" 
+                  style={{ aspectRatio: `${frame.width + OOB_MARGIN*2}/${frame.height + OOB_MARGIN*2}` }}
+                >
+                  <img 
+                    src={frame.dataUrl} 
+                    alt="Workspace" 
+                    className="absolute pointer-events-none" 
+                    style={{ 
+                      left: `${(OOB_MARGIN / (frame.width + OOB_MARGIN*2)) * 100}%`, 
+                      top: `${(OOB_MARGIN / (frame.height + OOB_MARGIN*2)) * 100}%`, 
+                      width: `${(frame.width / (frame.width + OOB_MARGIN*2)) * 100}%`, 
+                      height: `${(frame.height / (frame.height + OOB_MARGIN*2)) * 100}%`,
+                      border: '2px solid #ddd' 
+                    }} 
+                  />
+                  
+                  <svg 
+                    ref={svgRef}
+                    viewBox={`${-OOB_MARGIN} ${-OOB_MARGIN} ${frame.width + OOB_MARGIN*2} ${frame.height + OOB_MARGIN*2}`}
+                    className={`absolute inset-0 w-full h-full ${tool !== 'select' ? 'cursor-crosshair' : 'cursor-default'}`}
+                    onPointerDown={handlePointerDown}
+                    onPointerMove={handlePointerMove}
+                    onPointerUp={handlePointerUp}
+                    onPointerLeave={handlePointerUp}
+                  >
+                    <defs>
+                      <marker id="arrowhead" markerWidth="8" markerHeight="8" refX="4" refY="4" orient="auto">
+                        <polygon points="0 0, 8 4, 0 8" fill="#ef4444" />
+                      </marker>
+                    </defs>
+
+                    {annotations.map(ann => {
+                      const isSelected = ann.id === selectedId;
+
+                      if (ann.type === 'arrow' || ann.type === 'line') {
+                        const safeX1 = ann.x1 ?? 0;
+                        const safeY1 = ann.y1 ?? 0;
+                        const safeX2 = ann.x2 ?? 0;
+                        const safeY2 = ann.y2 ?? 0;
+                        const safeCX = ann.cx ?? (safeX1 + safeX2) / 2;
+                        const safeCY = ann.cy ?? (safeY1 + safeY2) / 2;
+                        const pathData = `M ${safeX1} ${safeY1} Q ${safeCX} ${safeCY} ${safeX2} ${safeY2}`;
+                        
+                        return (
+                          <g key={ann.id}>
+                            <path 
+                              d={pathData} fill="none" stroke="transparent" strokeWidth="60"
+                              onPointerDown={(e) => { e.stopPropagation(); setSelectedId(ann.id); setTool('select'); }}
+                              className="cursor-pointer"
+                            />
+                            <path d={pathData} fill="none" stroke={ann.color} strokeWidth="6" markerEnd={ann.type === 'arrow' ? 'url(#arrowhead)' : ''} pointerEvents="none" />
+                            {isSelected && (
+                              <g>
+                                <line x1={safeX1} y1={safeY1} x2={safeCX} y2={safeCY} stroke="#6366f1" strokeWidth="2" strokeDasharray="4 4" />
+                                <line x1={safeX2} y1={safeY2} x2={safeCX} y2={safeCY} stroke="#6366f1" strokeWidth="2" strokeDasharray="4 4" />
+                                <circle cx={safeCX} cy={safeCY} r="12" fill="#ef4444" stroke="#fff" strokeWidth="3" className="cursor-pointer"
+                                  onPointerDown={(e) => { e.stopPropagation(); setIsDragging(true); setDragType('cp'); }} 
+                                />
+                                <circle cx={safeX1} cy={safeY1} r="12" fill="#fff" stroke="#6366f1" strokeWidth="4" className="cursor-move"
+                                  onPointerDown={(e) => { e.stopPropagation(); setIsDragging(true); setDragType('start'); }} 
+                                />
+                                <circle cx={safeX2} cy={safeY2} r="12" fill="#fff" stroke="#6366f1" strokeWidth="4" className="cursor-move"
+                                  onPointerDown={(e) => { e.stopPropagation(); setIsDragging(true); setDragType('end'); }} 
+                                />
+                              </g>
+                            )}
+                          </g>
+                        );
+                      }
+
+                      if (ann.type === 'cameraArrow') {
+                        const safeX1 = ann.x1 ?? 0;
+                        const safeY1 = ann.y1 ?? 0;
+                        const safeX2 = ann.x2 ?? 100;
+                        const safeY2 = ann.y2 ?? 0;
+                        const safeCX = ann.cx ?? (safeX1 + safeX2) / 2;
+                        const safeCY = ann.cy ?? (safeY1 + safeY2) / 2;
+                        
+                        const faces = calculate3DArrow({...ann, x1: safeX1, y1: safeY1, x2: safeX2, y2: safeY2, cx: safeCX, cy: safeCY});
+
+                        const t = 0.5;
+                        const midX = (1-t)*(1-t)*safeX1 + 2*(1-t)*t*safeCX + t*t*safeX2;
+                        const midY = (1-t)*(1-t)*safeY1 + 2*(1-t)*t*safeCY + t*t*safeY2;
+                        const rot = Math.atan2(safeY2 - safeY1, safeX2 - safeX1) * 180 / Math.PI;
+                        const fontSize = Math.max(16, (ann.shaftWidth || 80) * 0.4);
+
+                        return (
+                          <g key={ann.id}>
+                            <path 
+                              d={`M ${safeX1} ${safeY1} Q ${safeCX} ${safeCY} ${safeX2} ${safeY2}`} 
+                              fill="none" stroke="transparent" strokeWidth="100"
+                              onPointerDown={(e) => { e.stopPropagation(); setSelectedId(ann.id); setTool('select'); }}
+                              className="cursor-pointer"
+                            />
+                            
+                            {faces.map((f, i) => (
+                              <polygon 
+                                  key={i}
+                                  points={f.pts.map(p => `${p[0]},${p[1]}`).join(' ')}
+                                  fill={adjustColor(ann.color, f.intensity)}
+                                  stroke="#000" strokeWidth="1.5" strokeLinejoin="round"
+                                  pointerEvents="none"
+                              />
+                            ))}
+
+                            {ann.showLabel !== false && (
+                              <text 
+                                x={midX} y={midY} 
+                                fill={ann.labelColor || '#000000'} 
+                                fontFamily="'Architects Daughter', cursive"
+                                fontWeight="bold"
+                                fontSize={fontSize}
+                                textAnchor="middle"
+                                dominantBaseline="central"
+                                transform={`rotate(${rot}, ${midX}, ${midY})`}
+                                style={{ userSelect: 'none', pointerEvents: 'none' }}
+                              >
+                                {ann.labelText || 'CAMERA'}
+                              </text>
+                            )}
+
+                            {isSelected && (
+                              <g>
+                                <line x1={safeX1} y1={safeY1} x2={safeCX} y2={safeCY} stroke="#6366f1" strokeWidth="2" strokeDasharray="4 4" />
+                                <line x1={safeX2} y1={safeY2} x2={safeCX} y2={safeCY} stroke="#6366f1" strokeWidth="2" strokeDasharray="4 4" />
+                                <circle cx={safeCX} cy={safeCY} r="12" fill="#ef4444" stroke="#fff" strokeWidth="3" className="cursor-pointer"
+                                  onPointerDown={(e) => { e.stopPropagation(); setIsDragging(true); setDragType('cp'); }} 
+                                />
+                                <circle cx={safeX1} cy={safeY1} r="12" fill="#fff" stroke="#6366f1" strokeWidth="4" className="cursor-move"
+                                  onPointerDown={(e) => { e.stopPropagation(); setIsDragging(true); setDragType('start'); }} 
+                                />
+                                <circle cx={safeX2} cy={safeY2} r="12" fill="#fff" stroke="#6366f1" strokeWidth="4" className="cursor-move"
+                                  onPointerDown={(e) => { e.stopPropagation(); setIsDragging(true); setDragType('end'); }} 
+                                />
+                              </g>
+                            )}
+                          </g>
+                        );
+                      }
+
+                      if (ann.type === 'text') {
+                        const pathId = `path-${ann.id}`;
+                        const arcDy = ann.shape === 'arcUp' ? -100 : 100;
+                        const safeX = ann.x ?? 0;
+                        const safeY = ann.y ?? 0;
+                        const textPathD = `M ${safeX - 150} ${safeY} Q ${safeX} ${safeY + arcDy} ${safeX + 150} ${safeY}`;
+                        
+                        const isBold = ann.isBold ? 'bold' : 'normal';
+                        const isItalic = ann.isItalic ? 'italic' : 'normal';
+                        const rot = ann.rotation || 0;
+                        const font = "'Architects Daughter', cursive";
+
+                        return (
+                          <g key={ann.id} 
+                             transform={`rotate(${rot}, ${safeX}, ${safeY})`}
+                             onPointerDown={(e) => { 
+                               e.stopPropagation(); 
+                               setSelectedId(ann.id); 
+                               setTool('select'); 
+                               setIsDragging(true); 
+                               setDragType('move'); 
+                               const coords = getMouseCoords(e);
+                               setDragOffset({ x: safeX - coords.x, y: safeY - coords.y });
+                             }}
+                             className={tool === 'select' ? 'cursor-move' : 'cursor-default'}
+                          >
+                            {isSelected && <circle cx={safeX} cy={safeY} r="8" fill="#6366f1" />}
+                            
+                            {ann.shape === 'normal' ? (
+                              <text x={safeX} y={safeY} fill={ann.color} fontFamily={font} fontWeight={isBold} fontStyle={isItalic} fontSize={ann.fontSize} style={{userSelect:'none'}}>
+                                {ann.text}
+                              </text>
+                            ) : (
+                              <>
+                                <path id={pathId} d={textPathD} fill="none" stroke="none" />
+                                <text fill={ann.color} fontFamily={font} fontWeight={isBold} fontStyle={isItalic} fontSize={ann.fontSize} style={{userSelect:'none'}}>
+                                  <textPath href={`#${pathId}`} startOffset="50%" textAnchor="middle">{ann.text}</textPath>
+                                </text>
+                              </>
+                            )}
+                          </g>
+                        );
+                      }
+                      return null;
+                    })}
+                  </svg>
+                </div>
+
+                <div className="w-full bg-gray-900 border border-gray-800 rounded-xl p-5 shadow-lg">
+                  <label className="text-xs font-bold text-indigo-400 uppercase tracking-wider block mb-3">Storyboard Description / Dialogue</label>
+                  <textarea 
+                    className="w-full bg-gray-800 text-white rounded-lg p-4 border border-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent min-h-[120px] resize-y custom-scrollbar text-lg font-medium"
+                    placeholder="Action notes, camera movement, or dialogue for this shot..."
+                    value={frame.description || ''}
+                    onChange={(e) => updateFrameDescription(frame.id, e.target.value)}
+                  />
+                </div>
+
+              </div>
+            </div>
+
+            <div className="w-80 bg-gray-900 border-l border-gray-800 flex flex-col flex-shrink-0 z-20 shadow-[-10px_0_20px_rgba(0,0,0,0.5)]">
+              {selectedItem ? (
+                <div className="p-6 flex flex-col gap-6 overflow-y-auto h-full custom-scrollbar">
+                  <div className="flex items-center justify-between">
+                    <h3 className="font-semibold text-white uppercase tracking-wider text-sm">
+                      {selectedItem.type === 'cameraArrow' ? '3D Camera Arrow' : selectedItem.type} Props
+                    </h3>
+                    <button 
+                      onClick={() => setAnnotations(prev => prev.filter(a => a.id !== selectedId))}
+                      className="p-2 text-red-400 hover:bg-red-400/10 rounded transition"
+                      title="Delete Object"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+
+                  <div>
+                    <label className="text-xs text-gray-400 block mb-2">Base Color</label>
+                    <div className="flex gap-2 flex-wrap">
+                      {colorPalette.map(color => (
+                        <button
+                          key={color}
+                          onClick={() => setAnnotations(prev => prev.map(a => a.id === selectedId ? {...a, color} : a))}
+                          className={`w-8 h-8 rounded-full border-2 ${selectedItem.color === color ? 'border-white scale-110' : 'border-transparent hover:scale-105'}`}
+                          style={{ backgroundColor: color }}
+                        />
+                      ))}
+                    </div>
+                  </div>
+
+                  {selectedItem.type === 'cameraArrow' && (
+                    <>
+                      <div className="space-y-4 pt-4 border-t border-gray-800">
+                        <h4 className="text-xs font-bold text-gray-300 uppercase">Text Label</h4>
+                        
+                        <div className="flex items-center justify-between mt-2">
+                          <label className="text-xs text-gray-400">Arrow Word</label>
+                          <select 
+                            value={selectedItem.labelText || 'CAMERA'} 
+                            onChange={(e) => setAnnotations(prev => prev.map(a => a.id === selectedId ? {...a, labelText: e.target.value} : a))}
+                            className="bg-gray-800 border border-gray-700 text-white text-xs p-1.5 rounded outline-none w-32"
+                          >
+                            <option value="CAMERA">CAMERA</option>
+                            <option value="PAN">PAN</option>
+                            <option value="DOLLY">DOLLY</option>
+                            <option value="TRACK">TRACK</option>
+                            <option value="ZOOM">ZOOM</option>
+                            <option value="TILT">TILT</option>
+                          </select>
+                        </div>
+
+                        <div className="flex items-center justify-between">
+                          <label className="text-xs text-gray-400">Show Label</label>
+                          <input 
+                            type="checkbox" 
+                            checked={selectedItem.showLabel !== false} 
+                            onChange={(e) => setAnnotations(prev => prev.map(a => a.id === selectedId ? {...a, showLabel: e.target.checked} : a))} 
+                            className="accent-indigo-500 w-4 h-4 cursor-pointer"
+                          />
+                        </div>
+                        {selectedItem.showLabel !== false && (
+                          <div>
+                            <label className="text-xs text-gray-400 block mb-2">Label Color</label>
+                            <div className="flex gap-2 flex-wrap">
+                              {colorPalette.map(color => (
+                                <button
+                                  key={`label-${color}`}
+                                  onClick={() => setAnnotations(prev => prev.map(a => a.id === selectedId ? {...a, labelColor: color} : a))}
+                                  className={`w-6 h-6 rounded-full border-2 ${selectedItem.labelColor === color ? 'border-white scale-110' : 'border-transparent hover:scale-105'}`}
+                                  style={{ backgroundColor: color }}
+                                />
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="space-y-4 pt-4 border-t border-gray-800">
+                        <h4 className="text-xs font-bold text-gray-300 uppercase">3D Orientation</h4>
+                        <div>
+                          <label className="text-xs text-indigo-300 flex justify-between">
+                            <span>Pitch (Tilt into/out of frame)</span>
+                            <span>{selectedItem.tiltX || 35}°</span>
+                          </label>
+                          <input type="range" min="-90" max="90" value={selectedItem.tiltX || 35} onChange={(e) => setAnnotations(prev => prev.map(a => a.id === selectedId ? {...a, tiltX: parseInt(e.target.value)} : a))} className="w-full accent-indigo-500"/>
+                        </div>
+                        <div>
+                          <label className="text-xs text-indigo-300 flex justify-between">
+                            <span>Roll (Spin)</span>
+                            <span>{selectedItem.tiltY || 25}°</span>
+                          </label>
+                          <input type="range" min="-90" max="90" value={selectedItem.tiltY || 25} onChange={(e) => setAnnotations(prev => prev.map(a => a.id === selectedId ? {...a, tiltY: parseInt(e.target.value)} : a))} className="w-full accent-indigo-500"/>
+                        </div>
+                      </div>
+
+                      <div className="space-y-4 pt-4 border-t border-gray-800">
+                        <h4 className="text-xs font-bold text-gray-300 uppercase">Volume Dimensions</h4>
+                        <div>
+                          <label className="text-xs text-gray-400 flex justify-between">
+                            <span>Base Width (Tail)</span>
+                            <span>{selectedItem.baseWidth || 150}px</span>
+                          </label>
+                          <input type="range" min="10" max="500" value={selectedItem.baseWidth || 150} onChange={(e) => setAnnotations(prev => prev.map(a => a.id === selectedId ? {...a, baseWidth: parseInt(e.target.value)} : a))} className="w-full accent-gray-500"/>
+                        </div>
+                        <div>
+                          <label className="text-xs text-gray-400 flex justify-between">
+                            <span>Shaft Width (Neck)</span>
+                            <span>{selectedItem.shaftWidth || 80}px</span>
+                          </label>
+                          <input type="range" min="5" max="400" value={selectedItem.shaftWidth || 80} onChange={(e) => setAnnotations(prev => prev.map(a => a.id === selectedId ? {...a, shaftWidth: parseInt(e.target.value)} : a))} className="w-full accent-gray-500"/>
+                        </div>
+                        <div>
+                          <label className="text-xs text-gray-400 flex justify-between">
+                            <span>3D Thickness (Depth)</span>
+                            <span>{selectedItem.thickness || 60}px</span>
+                          </label>
+                          <input type="range" min="5" max="250" value={selectedItem.thickness || 60} onChange={(e) => setAnnotations(prev => prev.map(a => a.id === selectedId ? {...a, thickness: parseInt(e.target.value)} : a))} className="w-full accent-gray-500"/>
+                        </div>
+                        <div>
+                          <label className="text-xs text-gray-400 flex justify-between">
+                            <span>Head Width</span>
+                            <span>{selectedItem.headWidth || 240}px</span>
+                          </label>
+                          <input type="range" min="30" max="600" value={selectedItem.headWidth || 240} onChange={(e) => setAnnotations(prev => prev.map(a => a.id === selectedId ? {...a, headWidth: parseInt(e.target.value)} : a))} className="w-full accent-gray-500"/>
+                        </div>
+                        <div>
+                          <label className="text-xs text-gray-400 flex justify-between">
+                            <span>Head Length</span>
+                            <span>{selectedItem.headLength || 120}px</span>
+                          </label>
+                          <input type="range" min="20" max="500" value={selectedItem.headLength || 120} onChange={(e) => setAnnotations(prev => prev.map(a => a.id === selectedId ? {...a, headLength: parseInt(e.target.value)} : a))} className="w-full accent-gray-500"/>
+                        </div>
+                      </div>
+                    </>
+                  )}
+
+                  {selectedItem.type === 'text' && (
+                    <>
+                      <div>
+                        <label className="text-xs text-gray-400 block mb-2">Text Content</label>
+                        <input 
+                          type="text" 
+                          value={selectedItem.text} 
+                          onChange={(e) => setAnnotations(prev => prev.map(a => a.id === selectedId ? {...a, text: e.target.value} : a))}
+                          className="w-full bg-gray-800 border border-gray-700 rounded p-2 text-white font-bold focus:outline-none focus:border-indigo-500"
+                        />
+                      </div>
+
+                      <div className="flex gap-2 mb-2">
+                        <button 
+                          onClick={() => setAnnotations(prev => prev.map(a => a.id === selectedId ? {...a, isBold: !a.isBold} : a))}
+                          className={`p-2 rounded flex-1 flex items-center justify-center border ${selectedItem.isBold ? 'bg-indigo-600 border-indigo-500 text-white' : 'bg-gray-800 border-gray-700 text-gray-400 hover:text-white'}`}
+                          title="Bold"
+                        >
+                          <Bold className="w-4 h-4" />
+                        </button>
+                        <button 
+                          onClick={() => setAnnotations(prev => prev.map(a => a.id === selectedId ? {...a, isItalic: !a.isItalic} : a))}
+                          className={`p-2 rounded flex-1 flex items-center justify-center border ${selectedItem.isItalic ? 'bg-indigo-600 border-indigo-500 text-white' : 'bg-gray-800 border-gray-700 text-gray-400 hover:text-white'}`}
+                          title="Italic"
+                        >
+                          <Italic className="w-4 h-4" />
+                        </button>
+                      </div>
+                      
+                      <div>
+                        <label className="text-xs text-gray-400 flex justify-between mb-2">
+                          <span>Rotation</span>
+                          <RotateCw className="w-3 h-3"/>
+                        </label>
+                        <input 
+                          type="range" min="-180" max="180" 
+                          value={selectedItem.rotation || 0} 
+                          onChange={(e) => setAnnotations(prev => prev.map(a => a.id === selectedId ? {...a, rotation: parseInt(e.target.value)} : a))}
+                          className="w-full accent-indigo-500"
+                        />
+                      </div>
+                    </>
+                  )}
+
+                  <div className="bg-gray-800/50 p-4 rounded-lg mt-auto border border-gray-800">
+                     <p className="text-xs text-gray-400 mb-1">Tips:</p>
+                     <ul className="text-[11px] text-gray-500 list-disc pl-4 space-y-1">
+                       {selectedItem.type === 'cameraArrow' && <li>Drag the red <b>Curve Point</b> to bend the 3D volume.</li>}
+                       {selectedItem.type === 'cameraArrow' && <li>Use Pitch and Roll to set the 3D perspective orientation.</li>}
+                       {selectedItem.type === 'text' && <li>Drag text securely by clicking anywhere on the word.</li>}
+                     </ul>
+                  </div>
+                </div>
+              ) : (
+                <div className="p-6 flex flex-col items-center justify-center h-full text-gray-500 text-center bg-gray-900">
+                  <MousePointer2 className="w-8 h-8 mb-3 opacity-20" />
+                  <p className="text-sm">Select an element on the canvas to edit its properties.</p>
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div className="h-32 bg-gray-900 border-t border-gray-800 flex items-center px-4 overflow-x-auto gap-4 custom-scrollbar flex-shrink-0 shadow-[0_-10px_20px_rgba(0,0,0,0.5)] z-40">
+            {frames.map((f, index) => (
+              <div 
+                key={f.id} 
+                onClick={() => setActiveFrameId(f.id)}
+                className={`relative flex-shrink-0 h-24 aspect-video rounded-lg overflow-hidden border-2 cursor-pointer transition-all ${activeFrameId === f.id ? 'border-indigo-500 ring-4 ring-indigo-500/30 scale-105' : 'border-gray-700 hover:border-gray-500 opacity-60 hover:opacity-100'}`}
+              >
+                <div className="absolute top-1 left-1 bg-black/80 text-[10px] font-mono px-1.5 py-0.5 rounded text-gray-300 z-10">
+                  Shot {index + 1}
+                </div>
+                {f.annotations && f.annotations.length > 0 && (
+                  <div className="absolute top-1 right-1 bg-purple-600/90 text-[10px] px-1.5 py-0.5 rounded text-white z-10">
+                    <TypeIcon className="w-3 h-3"/>
+                  </div>
+                )}
+                <img src={f.dataUrl} alt="Thumbnail" className="w-full h-full object-cover pointer-events-none" />
+              </div>
+            ))}
+          </div>
+        </div>
+      );
+    };
+
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<App />);
+  </script>
+</body>
+</html>
