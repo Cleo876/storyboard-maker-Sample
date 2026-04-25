@@ -58,6 +58,7 @@
     const { useState, useRef, useEffect } = React;
     
     // --- FAILSAFE ICON BINDING (Fixes React Error 130 Black Screens) ---
+    // If an icon is renamed or removed from the CDN, it renders a dummy circle instead of crashing the whole app.
     const LucideIcons = window.LucideReact || window.lucideReact || window.lucide || {};
     const FallbackIcon = ({className}) => (
       <svg className={className} width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -91,7 +92,7 @@
     const Maximize = getIcon('Maximize');
     const Minimize = getIcon('Minimize');
 
-    const APP_VERSION = "v3.2.0 (Mobile Optimized)"; // UI Version Tracking
+    const APP_VERSION = "v3.0.5 (Stable)"; // UI Version Tracking
     const OOB_MARGIN = 150; 
 
     // --- Font Loading for Export Bypass ---
@@ -815,20 +816,19 @@
 
           {/* EXPORT MODAL */}
           {showExportModal && (
-            <div className="fixed inset-0 z-[100] bg-black/90 backdrop-blur-sm flex items-center justify-center p-4 md:p-6">
+            <div className="fixed inset-0 z-[100] bg-black/90 backdrop-blur-sm flex items-center justify-center p-6">
               <div className="bg-gray-900 border border-gray-800 rounded-2xl max-w-4xl w-full flex flex-col max-h-[90vh] shadow-2xl overflow-hidden">
-                <div className="p-4 md:p-6 border-b border-gray-800 flex justify-between items-center bg-gray-950">
-                  <h2 className="text-lg md:text-xl font-bold flex items-center gap-2"><LayoutGrid className="w-5 h-5 text-indigo-400" /> Export Storyboard Studio</h2>
-                  <div className="flex items-center gap-2 md:gap-4">
-                    <button onClick={() => setShowExportModal(false)} className="text-xs md:text-sm bg-gray-800 hover:bg-gray-700 px-3 py-1.5 md:px-4 md:py-2 rounded-lg text-white font-medium transition">
-                      <span className="hidden md:inline">Back to Studio</span>
-                      <span className="md:hidden">Back</span>
+                <div className="p-6 border-b border-gray-800 flex justify-between items-center bg-gray-950">
+                  <h2 className="text-xl font-bold flex items-center gap-2"><LayoutGrid className="w-5 h-5 text-indigo-400" /> Export Storyboard Studio</h2>
+                  <div className="flex items-center gap-4">
+                    <button onClick={() => setShowExportModal(false)} className="text-sm bg-gray-800 hover:bg-gray-700 px-4 py-2 rounded-lg text-white font-medium transition">
+                      Back to Studio
                     </button>
-                    <button onClick={() => setShowExportModal(false)} className="text-gray-400 hover:text-white"><X className="w-5 h-5 md:w-6 md:h-6" /></button>
+                    <button onClick={() => setShowExportModal(false)} className="text-gray-400 hover:text-white"><X className="w-6 h-6" /></button>
                   </div>
                 </div>
                 
-                <div className="flex-1 overflow-y-auto p-4 md:p-6 flex flex-col md:flex-row gap-6 md:gap-8 custom-scrollbar">
+                <div className="flex-1 overflow-y-auto p-6 flex flex-col md:flex-row gap-8 custom-scrollbar">
                   <div className="w-full md:w-64 space-y-6 flex-shrink-0">
                     <div>
                       <label className="text-sm text-gray-400 block mb-2 font-medium">Storyboard Title</label>
@@ -856,7 +856,7 @@
                     </div>
                     <div className="pt-6 space-y-3 border-t border-gray-800">
                       <button onClick={downloadIndividualFrames} disabled={isExporting} className="w-full bg-gray-800 hover:bg-gray-700 text-white py-3 rounded-lg font-medium flex items-center justify-center gap-2 transition disabled:opacity-50">
-                        <Download className="w-4 h-4" /> <span className="hidden md:inline">Download Rendered Frames Individually</span><span className="md:hidden">Individual Frames</span>
+                        <Download className="w-4 h-4" /> Download Rendered Frames Individually
                       </button>
                       <button onClick={downloadBoard} disabled={isExporting} className="w-full bg-indigo-600 hover:bg-indigo-500 text-white py-3 rounded-lg font-medium flex items-center justify-center gap-2 shadow-lg transition disabled:opacity-50 transform hover:-translate-y-0.5">
                         {isExporting ? <RefreshCw className="w-4 h-4 animate-spin" /> : <LayoutGrid className="w-4 h-4" />} Export Board Sheet
@@ -864,16 +864,16 @@
                     </div>
                   </div>
 
-                  <div className="flex-1 bg-gray-800 rounded-xl p-4 md:p-6 overflow-auto border border-gray-700 custom-scrollbar">
+                  <div className="flex-1 bg-gray-800 rounded-xl p-6 overflow-auto border border-gray-700 custom-scrollbar">
                     <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-4">Live Layout Preview</h3>
                     <div 
-                      className="grid gap-2 md:gap-4 bg-gray-200 p-2 md:p-4 rounded"
+                      className="grid gap-4 bg-gray-200 p-4 rounded"
                       style={{ gridTemplateColumns: `repeat(${exportCols}, minmax(0, 1fr))` }}
                     >
                       {frames.map((f, i) => (
-                        <div key={i} className="bg-white shadow flex flex-col items-center p-1 md:p-2">
+                        <div key={i} className="bg-white shadow flex flex-col items-center p-2">
                           <div className="w-full aspect-video bg-gray-300" style={{ border: `${exportBorderWidth}px solid ${exportBorderColor}` }}></div>
-                          {f.description && <div className="h-1 md:h-2 w-3/4 bg-gray-400 mt-1 md:mt-2 rounded"></div>}
+                          {f.description && <div className="h-2 w-3/4 bg-gray-400 mt-2 rounded"></div>}
                         </div>
                       ))}
                     </div>
@@ -885,52 +885,52 @@
 
           {!isEditorOpen ? (
             <>
-              <header className="bg-gray-900 border-b border-gray-800 p-2 md:p-4 flex items-center justify-between z-10 flex-shrink-0">
-                <div className="flex items-center gap-2 md:gap-3">
-                  <div className="bg-indigo-600 p-1.5 md:p-2 rounded-lg">
-                    <Film className="w-4 h-4 md:w-5 md:h-5 text-white" />
+              <header className="bg-gray-900 border-b border-gray-800 p-4 flex items-center justify-between z-10">
+                <div className="flex items-center gap-3">
+                  <div className="bg-indigo-600 p-2 rounded-lg">
+                    <Film className="w-5 h-5 text-white" />
                   </div>
-                  <h1 className="text-lg md:text-xl font-bold bg-gradient-to-r from-white to-gray-400 bg-clip-text text-transparent flex items-baseline gap-2">
-                    Storyboard Studio <span className="text-[10px] md:text-xs font-normal text-indigo-400 hidden sm:inline">{APP_VERSION}</span>
+                  <h1 className="text-xl font-bold bg-gradient-to-r from-white to-gray-400 bg-clip-text text-transparent flex items-baseline gap-2">
+                    Storyboard Studio <span className="text-xs font-normal text-indigo-400">{APP_VERSION}</span>
                   </h1>
                 </div>
-                <div className="flex items-center gap-2 md:gap-4">
-                  <button onClick={toggleFullscreen} className="text-gray-400 hover:text-white transition hidden sm:block" title="Toggle Fullscreen">
-                    {isFullscreen ? <Minimize className="w-4 h-4 md:w-5 md:h-5" /> : <Maximize className="w-4 h-4 md:w-5 md:h-5" />}
+                <div className="flex items-center gap-4">
+                  <button onClick={toggleFullscreen} className="text-gray-400 hover:text-white transition" title="Toggle Fullscreen">
+                    {isFullscreen ? <Minimize className="w-5 h-5" /> : <Maximize className="w-5 h-5" />}
                   </button>
-                  <label className="cursor-pointer bg-white text-gray-900 hover:bg-gray-200 px-3 py-1.5 md:px-4 md:py-2 rounded-md font-medium text-xs md:text-sm flex items-center gap-2 transition-colors whitespace-nowrap">
-                    <Upload className="w-4 h-4" /> <span className="hidden sm:inline">Upload Video</span>
+                  <label className="cursor-pointer bg-white text-gray-900 hover:bg-gray-200 px-4 py-2 rounded-md font-medium text-sm flex items-center gap-2 transition-colors">
+                    <Upload className="w-4 h-4" /> Upload Video
                     <input type="file" accept="video/*" className="hidden" onChange={handleFileUpload} />
                   </label>
                 </div>
               </header>
 
-              <main className="flex-1 flex flex-col lg:flex-row overflow-hidden">
-                <div className="flex-1 p-2 md:p-6 flex flex-col overflow-y-auto custom-scrollbar">
+              <main className="flex-1 flex overflow-hidden">
+                <div className="flex-1 p-6 flex flex-col overflow-y-auto custom-scrollbar">
                   {!videoSrc ? (
-                    <div className="flex-1 border-2 border-dashed border-gray-700 rounded-xl flex flex-col items-center justify-center text-gray-500 bg-gray-900/50 min-h-[250px] md:min-h-[400px]">
-                      <Upload className="w-10 h-10 md:w-12 md:h-12 mb-3 md:mb-4 opacity-50" />
-                      <p className="text-base md:text-lg font-medium text-gray-400">No Video Loaded</p>
-                      <p className="text-xs md:text-sm mt-2 text-center px-4">Upload a video to start creating your storyboard.</p>
+                    <div className="flex-1 border-2 border-dashed border-gray-700 rounded-xl flex flex-col items-center justify-center text-gray-500 bg-gray-900/50 min-h-[400px]">
+                      <Upload className="w-12 h-12 mb-4 opacity-50" />
+                      <p className="text-lg font-medium text-gray-400">No Video Loaded</p>
+                      <p className="text-sm mt-2">Upload a video to start creating your storyboard.</p>
                     </div>
                   ) : (
-                    <div className="flex flex-col gap-3 md:gap-6 max-w-5xl mx-auto w-full">
+                    <div className="flex flex-col gap-6 max-w-5xl mx-auto w-full">
                       <div className="bg-gray-900 rounded-xl overflow-hidden border border-gray-800 shadow-2xl relative group flex-shrink-0">
                         <video
                           ref={videoRef}
                           src={videoSrc}
-                          className="w-full max-h-[40vh] md:max-h-[50vh] aspect-video bg-black object-contain"
+                          className="w-full max-h-[50vh] aspect-video bg-black object-contain"
                           onLoadedMetadata={() => setDuration(videoRef.current.duration)}
                           onTimeUpdate={() => setCurrentTime(videoRef.current.currentTime)}
                           onPlay={() => setIsPlaying(true)}
                           onPause={() => setIsPlaying(false)}
                           onClick={() => isPlaying ? videoRef.current.pause() : videoRef.current.play()}
                         />
-                        <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-3 md:p-4 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-2 md:gap-4">
+                        <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-4 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-4">
                           <button onClick={() => isPlaying ? videoRef.current.pause() : videoRef.current.play()} className="text-white">
-                            {isPlaying ? <Pause className="w-5 h-5 md:w-6 md:h-6" /> : <Play className="w-5 h-5 md:w-6 md:h-6" />}
+                            {isPlaying ? <Pause className="w-6 h-6" /> : <Play className="w-6 h-6" />}
                           </button>
-                          <div className="text-xs md:text-sm font-mono whitespace-nowrap">{formatTime(currentTime)} / {formatTime(duration)}</div>
+                          <div className="text-sm font-mono">{formatTime(currentTime)} / {formatTime(duration)}</div>
                           <input 
                             type="range" min="0" max={duration || 100} value={currentTime} 
                             onChange={(e) => videoRef.current.currentTime = parseFloat(e.target.value)}
@@ -939,49 +939,49 @@
                         </div>
                       </div>
 
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-6 flex-shrink-0">
-                        <div className="bg-gray-900 border border-gray-800 p-3 md:p-5 rounded-xl flex flex-col justify-between">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 flex-shrink-0">
+                        <div className="bg-gray-900 border border-gray-800 p-5 rounded-xl flex flex-col justify-between">
                           <div>
-                            <h2 className="text-xs md:text-sm font-semibold text-gray-400 uppercase tracking-wider mb-2 md:mb-4 flex items-center gap-2">
+                            <h2 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-4 flex items-center gap-2">
                               <Camera className="w-4 h-4" /> Manual Capture
                             </h2>
-                            <p className="text-xs md:text-sm text-gray-500 mb-4 md:mb-6">Hit spacebar to pause, then capture the exact frame.</p>
+                            <p className="text-sm text-gray-500 mb-6">Hit spacebar to pause, then capture the exact frame.</p>
                           </div>
-                          <button onClick={captureManual} className="w-full bg-indigo-600 hover:bg-indigo-500 text-white py-2 md:py-3 rounded-lg font-medium flex items-center justify-center gap-2 transition text-sm md:text-base">
-                            <Camera className="w-4 h-4 md:w-5 md:h-5" /> Capture Current Frame
+                          <button onClick={captureManual} className="w-full bg-indigo-600 hover:bg-indigo-500 text-white py-3 rounded-lg font-medium flex items-center justify-center gap-2 transition">
+                            <Camera className="w-5 h-5" /> Capture Current Frame
                           </button>
                         </div>
 
-                        <div className="bg-gray-900 border border-gray-800 p-3 md:p-5 rounded-xl relative">
+                        <div className="bg-gray-900 border border-gray-800 p-5 rounded-xl relative">
                           {isExtracting && (
                             <div className="absolute inset-0 bg-gray-900/80 backdrop-blur-sm z-10 flex flex-col items-center justify-center rounded-xl">
-                              <RefreshCw className="w-6 h-6 md:w-8 md:h-8 text-indigo-500 animate-spin mb-2" />
-                              <p className="text-xs md:text-sm text-indigo-400 font-medium">Processing...</p>
+                              <RefreshCw className="w-8 h-8 text-indigo-500 animate-spin mb-2" />
+                              <p className="text-sm text-indigo-400 font-medium">Processing...</p>
                             </div>
                           )}
-                          <h2 className="text-xs md:text-sm font-semibold text-gray-400 uppercase tracking-wider mb-3 md:mb-4 flex items-center gap-2">
+                          <h2 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-4 flex items-center gap-2">
                             <Settings className="w-4 h-4" /> Extract & Style Settings
                           </h2>
-                          <div className="grid grid-cols-2 gap-2 md:gap-4 mb-3 md:mb-4">
+                          <div className="grid grid-cols-2 gap-4 mb-4">
                             <div>
-                              <label className="text-[10px] md:text-xs text-gray-400">Auto Frames</label>
+                              <label className="text-xs text-gray-400">Auto Frames</label>
                               <input type="range" min="1" max="20" value={autoCount} onChange={(e) => setAutoCount(parseInt(e.target.value))} className="w-full accent-indigo-500"/>
                             </div>
                             <div>
-                              <label className="text-[10px] md:text-xs text-gray-400 flex justify-between">Sketch Detail <span className="text-[8px] md:text-[10px] text-teal-500 hidden sm:inline">Auto</span></label>
-                              <input type="range" min="1" max="10" value={detailLevel} onChange={(e) => setDetailLevel(parseInt(e.target.value))} onPointerUp={reprocessAllFrames} onTouchEnd={reprocessAllFrames} className="w-full accent-teal-500"/>
+                              <label className="text-xs text-gray-400 flex justify-between">Sketch Detail {frames.length > 0 && <span className="text-[10px] text-teal-500">Auto-renders</span>}</label>
+                              <input type="range" min="1" max="10" value={detailLevel} onChange={(e) => setDetailLevel(parseInt(e.target.value))} onPointerUp={reprocessAllFrames} className="w-full accent-teal-500"/>
                             </div>
                             <div>
-                              <label className="text-[10px] md:text-xs text-gray-400">Shading Spread</label>
-                              <input type="range" min="0" max="255" value={hatchSpread} onChange={(e) => setHatchSpread(parseInt(e.target.value))} onPointerUp={reprocessAllFrames} onTouchEnd={reprocessAllFrames} className="w-full accent-blue-500"/>
+                              <label className="text-xs text-gray-400">Shading Spread</label>
+                              <input type="range" min="0" max="255" value={hatchSpread} onChange={(e) => setHatchSpread(parseInt(e.target.value))} onPointerUp={reprocessAllFrames} className="w-full accent-blue-500"/>
                             </div>
                             <div>
-                              <label className="text-[10px] md:text-xs text-gray-400">Shading Density</label>
-                              <input type="range" min="1" max="10" value={hatchDensity} onChange={(e) => setHatchDensity(parseInt(e.target.value))} onPointerUp={reprocessAllFrames} onTouchEnd={reprocessAllFrames} className="w-full accent-blue-500"/>
+                              <label className="text-xs text-gray-400">Shading Density</label>
+                              <input type="range" min="1" max="10" value={hatchDensity} onChange={(e) => setHatchDensity(parseInt(e.target.value))} onPointerUp={reprocessAllFrames} className="w-full accent-blue-500"/>
                             </div>
                           </div>
-                          <button onClick={captureAuto} disabled={isExtracting} className="w-full bg-white text-gray-900 hover:bg-gray-200 py-2 md:py-3 rounded-lg font-medium flex items-center justify-center gap-2 transition disabled:opacity-50 text-sm md:text-base">
-                             <ImageIcon className="w-4 h-4 md:w-5 md:h-5" /> Auto-Generate Sequence
+                          <button onClick={captureAuto} disabled={isExtracting} className="w-full bg-white text-gray-900 hover:bg-gray-200 py-3 rounded-lg font-medium flex items-center justify-center gap-2 transition disabled:opacity-50">
+                             <ImageIcon className="w-5 h-5" /> Auto-Generate Sequence
                           </button>
                         </div>
                       </div>
@@ -989,11 +989,11 @@
                   )}
                 </div>
 
-                <div className="w-full lg:w-80 bg-gray-900 border-t lg:border-t-0 lg:border-l border-gray-800 flex flex-col z-10 flex-shrink-0">
-                  <div className="p-2 md:p-4 border-b border-gray-800 flex flex-col gap-2 md:gap-3">
+                <div className="w-80 bg-gray-900 border-l border-gray-800 flex flex-col z-10 flex-shrink-0">
+                  <div className="p-4 border-b border-gray-800 flex flex-col gap-3">
                     <div className="flex items-center justify-between">
-                      <h2 className="font-semibold text-gray-200 flex items-center gap-2 text-sm md:text-base">
-                        Tray <span className="bg-indigo-600 text-[10px] md:text-xs px-2 py-0.5 rounded-full">{frames.length}</span>
+                      <h2 className="font-semibold text-gray-200 flex items-center gap-2">
+                        Tray <span className="bg-indigo-600 text-xs px-2 py-0.5 rounded-full">{frames.length}</span>
                       </h2>
                       {frames.length > 0 && (
                         <button onClick={() => setShowExportModal(true)} className="text-xs bg-gray-800 hover:bg-gray-700 px-2 py-1 rounded text-white font-medium flex items-center gap-1 transition">
@@ -1007,14 +1007,14 @@
                           setActiveFrameId(frames[0].id);
                           setIsEditorOpen(true);
                         }}
-                        className="w-full py-1.5 md:py-2 px-3 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white rounded-lg font-medium flex items-center justify-center gap-2 shadow-lg transition transform hover:-translate-y-0.5 text-sm md:text-base"
+                        className="w-full py-2 px-3 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white rounded-lg font-medium flex items-center justify-center gap-2 shadow-lg transition transform hover:-translate-y-0.5"
                       >
                         <Edit3 className="w-4 h-4" /> Open Editor Mode
                       </button>
                     )}
                   </div>
                   
-                  <div className="flex-1 overflow-y-auto p-2 md:p-4 space-y-2 md:space-y-4 custom-scrollbar h-[25vh] lg:h-auto min-h-[200px]">
+                  <div className="flex-1 overflow-y-auto p-4 space-y-4 custom-scrollbar">
                     {frames.map((frame, index) => (
                       <div key={frame.id} className="relative bg-black rounded-lg overflow-hidden border border-gray-700 group cursor-pointer hover:border-indigo-500 transition-colors">
                         <div className="absolute top-1 left-1 bg-black/80 text-[10px] font-mono px-1.5 py-0.5 rounded text-gray-300 z-10">
@@ -1187,39 +1187,39 @@
 
       return (
         <div className="fixed inset-0 z-50 bg-gray-900 flex flex-col font-sans">
-          <div className="h-14 md:h-16 bg-gray-950 border-b border-gray-800 flex items-center justify-between px-2 md:px-6 flex-shrink-0 z-30">
-            <div className="flex items-center gap-2 flex-shrink-0">
-              <button onClick={onClose} className="text-gray-400 hover:text-white flex items-center gap-1 md:gap-2">
-                <X className="w-5 h-5" /> <span className="hidden md:inline">Exit Editor</span>
+          <div className="h-16 bg-gray-950 border-b border-gray-800 flex items-center justify-between px-6 flex-shrink-0 z-30">
+            <div className="flex items-center gap-6">
+              <button onClick={onClose} className="text-gray-400 hover:text-white flex items-center gap-2">
+                <X className="w-5 h-5" /> Exit Editor
               </button>
               
-              <div className="h-6 md:h-8 w-px bg-gray-800 hidden sm:block" />
+              <div className="h-8 w-px bg-gray-800" />
 
-              <div className="flex items-center gap-1 md:gap-2 bg-gray-900 p-1 rounded-lg overflow-x-auto custom-scrollbar whitespace-nowrap flex-1 min-w-0 mx-1 md:mx-4">
+              <div className="flex items-center gap-2 bg-gray-900 p-1 rounded-lg">
                 <button 
                   onClick={() => handleToolSelect('select')} 
-                  className={`p-1.5 md:p-2 rounded flex items-center gap-1 md:gap-2 text-xs md:text-sm font-medium transition ${tool === 'select' ? 'bg-indigo-600 text-white' : 'text-gray-400 hover:bg-gray-800'}`}
+                  className={`p-2 rounded flex items-center gap-2 text-sm font-medium transition ${tool === 'select' ? 'bg-indigo-600 text-white' : 'text-gray-400 hover:bg-gray-800'}`}
                   title="Select & Move"
                 >
-                  <MousePointer2 className="w-4 h-4" /> <span className="hidden lg:inline">Select</span>
+                  <MousePointer2 className="w-4 h-4" /> Select
                 </button>
                 <div className="relative">
                   <button 
                     onClick={() => setMotionMenuOpen(!motionMenuOpen)}
-                    className={`p-1.5 md:p-2 rounded flex items-center gap-1 md:gap-2 text-xs md:text-sm font-medium transition ${(tool === 'arrow' || tool === 'line' || tool === 'cameraArrow') ? 'bg-indigo-600 text-white' : 'text-gray-400 hover:bg-gray-800'}`}
+                    className={`p-2 rounded flex items-center gap-2 text-sm font-medium transition ${(tool === 'arrow' || tool === 'line' || tool === 'cameraArrow') ? 'bg-indigo-600 text-white' : 'text-gray-400 hover:bg-gray-800'}`}
                   >
-                    <Navigation className="w-4 h-4" /> <span className="hidden lg:inline">Motion Tools</span>
+                    <Navigation className="w-4 h-4" /> Motion Tools
                   </button>
                   {/* Click-to-open Dropdown for Motion */}
                   {motionMenuOpen && (
-                    <div className="absolute top-full left-0 mt-2 bg-gray-800 border border-gray-700 rounded-lg p-2 shadow-2xl z-50 flex flex-col gap-1 w-40 md:w-48">
-                      <button onClick={() => { handleToolSelect('arrow'); setMotionMenuOpen(false); }} className="text-left px-3 py-2 text-xs md:text-sm text-gray-300 hover:bg-gray-700 rounded flex items-center gap-2">
+                    <div className="absolute top-full left-0 mt-2 bg-gray-800 border border-gray-700 rounded-lg p-2 shadow-2xl z-50 flex flex-col gap-1 w-48">
+                      <button onClick={() => { handleToolSelect('arrow'); setMotionMenuOpen(false); }} className="text-left px-3 py-2 text-sm text-gray-300 hover:bg-gray-700 rounded flex items-center gap-2">
                         <ArrowUpRight className="w-4 h-4"/> Standard Arrow
                       </button>
-                      <button onClick={() => { handleToolSelect('cameraArrow'); setMotionMenuOpen(false); }} className="text-left px-3 py-2 text-xs md:text-sm text-gray-300 hover:bg-gray-700 rounded flex items-center gap-2">
+                      <button onClick={() => { handleToolSelect('cameraArrow'); setMotionMenuOpen(false); }} className="text-left px-3 py-2 text-sm text-gray-300 hover:bg-gray-700 rounded flex items-center gap-2">
                         <Move className="w-4 h-4"/> Camera Arrow (3D)
                       </button>
-                      <button onClick={() => { handleToolSelect('line'); setMotionMenuOpen(false); }} className="text-left px-3 py-2 text-xs md:text-sm text-gray-300 hover:bg-gray-700 rounded flex items-center gap-2">
+                      <button onClick={() => { handleToolSelect('line'); setMotionMenuOpen(false); }} className="text-left px-3 py-2 text-sm text-gray-300 hover:bg-gray-700 rounded flex items-center gap-2">
                         <Minus className="w-4 h-4"/> Simple Line
                       </button>
                     </div>
@@ -1227,30 +1227,30 @@
                 </div>
                 <button 
                   onClick={() => handleToolSelect('text')} 
-                  className={`p-1.5 md:p-2 rounded flex items-center gap-1 md:gap-2 text-xs md:text-sm font-medium transition ${tool === 'text' ? 'bg-indigo-600 text-white' : 'text-gray-400 hover:bg-gray-800'}`}
+                  className={`p-2 rounded flex items-center gap-2 text-sm font-medium transition ${tool === 'text' ? 'bg-indigo-600 text-white' : 'text-gray-400 hover:bg-gray-800'}`}
                 >
-                  <TypeIcon className="w-4 h-4" /> <span className="hidden lg:inline">Add Text</span>
+                  <TypeIcon className="w-4 h-4" /> Add Text
                 </button>
               </div>
             </div>
 
-            <div className="flex items-center gap-2 md:gap-4 flex-shrink-0">
-              <button onClick={toggleFullscreen} className="text-gray-400 hover:text-white transition hidden sm:block" title="Toggle Fullscreen">
-                {isFullscreen ? <Minimize className="w-4 h-4 md:w-5 md:h-5" /> : <Maximize className="w-4 h-4 md:w-5 md:h-5" />}
+            <div className="flex items-center gap-4">
+              <button onClick={toggleFullscreen} className="text-gray-400 hover:text-white transition" title="Toggle Fullscreen">
+                {isFullscreen ? <Minimize className="w-5 h-5" /> : <Maximize className="w-5 h-5" />}
               </button>
               <button 
                 onClick={() => setShowExportModal(true)}
-                className="bg-indigo-600 hover:bg-indigo-500 text-white px-2 py-1.5 md:px-4 md:py-2 rounded text-xs md:text-sm font-medium flex items-center gap-1 md:gap-2 transition shadow-lg whitespace-nowrap"
+                className="bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 rounded font-medium flex items-center gap-2 transition shadow-lg"
               >
-                <LayoutGrid className="w-4 h-4" /> <span className="hidden md:inline">Export Studio</span>
+                <LayoutGrid className="w-4 h-4" /> Export Studio
               </button>
             </div>
           </div>
 
-          <div className="flex-1 overflow-hidden flex flex-col lg:flex-row bg-gray-950 relative">
-            <div className="flex-1 flex flex-col items-center p-2 md:p-8 overflow-auto relative z-10 custom-scrollbar">
+          <div className="flex-1 overflow-hidden flex bg-gray-950 relative">
+            <div className="flex-1 flex flex-col items-center p-8 overflow-auto relative z-10 custom-scrollbar">
               
-              <div className="w-full max-w-5xl flex flex-col items-center gap-3 md:gap-6">
+              <div className="w-full max-w-5xl flex flex-col items-center gap-6">
                 <div 
                   className="relative w-full bg-white shadow-2xl flex-shrink-0" 
                   style={{ aspectRatio: `${frame.width + OOB_MARGIN*2}/${frame.height + OOB_MARGIN*2}` }}
@@ -1272,7 +1272,6 @@
                     ref={svgRef}
                     viewBox={`${-OOB_MARGIN} ${-OOB_MARGIN} ${frame.width + OOB_MARGIN*2} ${frame.height + OOB_MARGIN*2}`}
                     className={`absolute inset-0 w-full h-full ${tool !== 'select' ? 'cursor-crosshair' : 'cursor-default'}`}
-                    style={{ touchAction: 'none' }} // CRITICAL: Fixes mobile swiping interference while drawing
                     onPointerDown={handlePointerDown}
                     onPointerMove={handlePointerMove}
                     onPointerUp={handlePointerUp}
@@ -1441,10 +1440,10 @@
                   </svg>
                 </div>
 
-                <div className="w-full bg-gray-900 border border-gray-800 rounded-xl p-3 md:p-5 shadow-lg flex-shrink-0">
-                  <label className="text-[10px] md:text-xs font-bold text-indigo-400 uppercase tracking-wider block mb-2 md:mb-3">Storyboard Description / Dialogue</label>
+                <div className="w-full bg-gray-900 border border-gray-800 rounded-xl p-5 shadow-lg flex-shrink-0">
+                  <label className="text-xs font-bold text-indigo-400 uppercase tracking-wider block mb-3">Storyboard Description / Dialogue</label>
                   <textarea 
-                    className="w-full bg-gray-800 text-white rounded-lg p-2 md:p-4 border border-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent min-h-[80px] md:min-h-[120px] resize-y custom-scrollbar text-sm md:text-lg font-medium"
+                    className="w-full bg-gray-800 text-white rounded-lg p-4 border border-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent min-h-[120px] resize-y custom-scrollbar text-lg font-medium"
                     placeholder="Action notes, camera movement, or dialogue for this shot..."
                     value={frame.description || ''}
                     onChange={(e) => updateFrameDescription(frame.id, e.target.value)}
@@ -1454,16 +1453,16 @@
               </div>
             </div>
 
-            <div className="w-full lg:w-80 h-[30vh] lg:h-auto bg-gray-900 border-t lg:border-t-0 lg:border-l border-gray-800 flex flex-col flex-shrink-0 z-20 shadow-[0_-10px_20px_rgba(0,0,0,0.5)] lg:shadow-[-10px_0_20px_rgba(0,0,0,0.5)]">
+            <div className="w-80 bg-gray-900 border-l border-gray-800 flex flex-col flex-shrink-0 z-20 shadow-[-10px_0_20px_rgba(0,0,0,0.5)]">
               {selectedItem ? (
-                <div className="p-3 md:p-6 flex flex-col gap-3 md:gap-6 overflow-y-auto h-full custom-scrollbar">
+                <div className="p-6 flex flex-col gap-6 overflow-y-auto h-full custom-scrollbar">
                   <div className="flex items-center justify-between">
-                    <h3 className="font-semibold text-white uppercase tracking-wider text-[10px] md:text-sm">
+                    <h3 className="font-semibold text-white uppercase tracking-wider text-sm">
                       {selectedItem.type === 'cameraArrow' ? '3D Camera Arrow' : selectedItem.type} Props
                     </h3>
                     <button 
                       onClick={() => setAnnotations(prev => prev.filter(a => a.id !== selectedId))}
-                      className="p-1 md:p-2 text-red-400 hover:bg-red-400/10 rounded transition"
+                      className="p-2 text-red-400 hover:bg-red-400/10 rounded transition"
                       title="Delete Object"
                     >
                       <Trash2 className="w-4 h-4" />
@@ -1471,13 +1470,13 @@
                   </div>
 
                   <div>
-                    <label className="text-[10px] md:text-xs text-gray-400 block mb-1 md:mb-2">Base Color</label>
+                    <label className="text-xs text-gray-400 block mb-2">Base Color</label>
                     <div className="flex gap-2 flex-wrap">
                       {colorPalette.map(color => (
                         <button
                           key={color}
                           onClick={() => setAnnotations(prev => prev.map(a => a.id === selectedId ? {...a, color} : a))}
-                          className={`w-6 h-6 md:w-8 md:h-8 rounded-full border-2 ${selectedItem.color === color ? 'border-white scale-110' : 'border-transparent hover:scale-105'}`}
+                          className={`w-8 h-8 rounded-full border-2 ${selectedItem.color === color ? 'border-white scale-110' : 'border-transparent hover:scale-105'}`}
                           style={{ backgroundColor: color }}
                         />
                       ))}
@@ -1486,15 +1485,15 @@
 
                   {selectedItem.type === 'cameraArrow' && (
                     <>
-                      <div className="space-y-2 md:space-y-4 pt-2 md:pt-4 border-t border-gray-800">
-                        <h4 className="text-[10px] md:text-xs font-bold text-gray-300 uppercase">Text Label</h4>
+                      <div className="space-y-4 pt-4 border-t border-gray-800">
+                        <h4 className="text-xs font-bold text-gray-300 uppercase">Text Label</h4>
                         
-                        <div className="flex items-center justify-between mt-1 md:mt-2">
-                          <label className="text-[10px] md:text-xs text-gray-400">Arrow Word</label>
+                        <div className="flex items-center justify-between mt-2">
+                          <label className="text-xs text-gray-400">Arrow Word</label>
                           <select 
                             value={selectedItem.labelText || 'CAMERA'} 
                             onChange={(e) => setAnnotations(prev => prev.map(a => a.id === selectedId ? {...a, labelText: e.target.value} : a))}
-                            className="bg-gray-800 border border-gray-700 text-white text-[10px] md:text-xs p-1 md:p-1.5 rounded outline-none w-24 md:w-32"
+                            className="bg-gray-800 border border-gray-700 text-white text-xs p-1.5 rounded outline-none w-32"
                           >
                             <option value="CAMERA">CAMERA</option>
                             <option value="PAN">PAN</option>
@@ -1506,23 +1505,23 @@
                         </div>
 
                         <div className="flex items-center justify-between">
-                          <label className="text-[10px] md:text-xs text-gray-400">Show Label</label>
+                          <label className="text-xs text-gray-400">Show Label</label>
                           <input 
                             type="checkbox" 
                             checked={selectedItem.showLabel !== false} 
                             onChange={(e) => setAnnotations(prev => prev.map(a => a.id === selectedId ? {...a, showLabel: e.target.checked} : a))} 
-                            className="accent-indigo-500 w-3 h-3 md:w-4 md:h-4 cursor-pointer"
+                            className="accent-indigo-500 w-4 h-4 cursor-pointer"
                           />
                         </div>
                         {selectedItem.showLabel !== false && (
                           <div>
-                            <label className="text-[10px] md:text-xs text-gray-400 block mb-1 md:mb-2">Label Color</label>
-                            <div className="flex gap-1.5 md:gap-2 flex-wrap">
+                            <label className="text-xs text-gray-400 block mb-2">Label Color</label>
+                            <div className="flex gap-2 flex-wrap">
                               {colorPalette.map(color => (
                                 <button
                                   key={`label-${color}`}
                                   onClick={() => setAnnotations(prev => prev.map(a => a.id === selectedId ? {...a, labelColor: color} : a))}
-                                  className={`w-4 h-4 md:w-6 md:h-6 rounded-full border-2 ${selectedItem.labelColor === color ? 'border-white scale-110' : 'border-transparent hover:scale-105'}`}
+                                  className={`w-6 h-6 rounded-full border-2 ${selectedItem.labelColor === color ? 'border-white scale-110' : 'border-transparent hover:scale-105'}`}
                                   style={{ backgroundColor: color }}
                                 />
                               ))}
@@ -1531,17 +1530,17 @@
                         )}
                       </div>
 
-                      <div className="space-y-2 md:space-y-4 pt-2 md:pt-4 border-t border-gray-800">
-                        <h4 className="text-[10px] md:text-xs font-bold text-gray-300 uppercase">3D Orientation</h4>
+                      <div className="space-y-4 pt-4 border-t border-gray-800">
+                        <h4 className="text-xs font-bold text-gray-300 uppercase">3D Orientation</h4>
                         <div>
-                          <label className="text-[10px] md:text-xs text-indigo-300 flex justify-between">
+                          <label className="text-xs text-indigo-300 flex justify-between">
                             <span>Pitch (Tilt into/out of frame)</span>
                             <span>{selectedItem.tiltX || 35}°</span>
                           </label>
                           <input type="range" min="-90" max="90" value={selectedItem.tiltX || 35} onChange={(e) => setAnnotations(prev => prev.map(a => a.id === selectedId ? {...a, tiltX: parseInt(e.target.value)} : a))} className="w-full accent-indigo-500"/>
                         </div>
                         <div>
-                          <label className="text-[10px] md:text-xs text-indigo-300 flex justify-between">
+                          <label className="text-xs text-indigo-300 flex justify-between">
                             <span>Roll (Spin)</span>
                             <span>{selectedItem.tiltY || 25}°</span>
                           </label>
@@ -1549,38 +1548,38 @@
                         </div>
                       </div>
 
-                      <div className="space-y-2 md:space-y-4 pt-2 md:pt-4 border-t border-gray-800">
-                        <h4 className="text-[10px] md:text-xs font-bold text-gray-300 uppercase">Volume Dimensions</h4>
+                      <div className="space-y-4 pt-4 border-t border-gray-800">
+                        <h4 className="text-xs font-bold text-gray-300 uppercase">Volume Dimensions</h4>
                         <div>
-                          <label className="text-[10px] md:text-xs text-gray-400 flex justify-between">
+                          <label className="text-xs text-gray-400 flex justify-between">
                             <span>Base Width (Tail)</span>
                             <span>{selectedItem.baseWidth || 150}px</span>
                           </label>
                           <input type="range" min="10" max="500" value={selectedItem.baseWidth || 150} onChange={(e) => setAnnotations(prev => prev.map(a => a.id === selectedId ? {...a, baseWidth: parseInt(e.target.value)} : a))} className="w-full accent-gray-500"/>
                         </div>
                         <div>
-                          <label className="text-[10px] md:text-xs text-gray-400 flex justify-between">
+                          <label className="text-xs text-gray-400 flex justify-between">
                             <span>Shaft Width (Neck)</span>
                             <span>{selectedItem.shaftWidth || 80}px</span>
                           </label>
                           <input type="range" min="5" max="400" value={selectedItem.shaftWidth || 80} onChange={(e) => setAnnotations(prev => prev.map(a => a.id === selectedId ? {...a, shaftWidth: parseInt(e.target.value)} : a))} className="w-full accent-gray-500"/>
                         </div>
                         <div>
-                          <label className="text-[10px] md:text-xs text-gray-400 flex justify-between">
+                          <label className="text-xs text-gray-400 flex justify-between">
                             <span>3D Thickness (Depth)</span>
                             <span>{selectedItem.thickness || 60}px</span>
                           </label>
                           <input type="range" min="5" max="250" value={selectedItem.thickness || 60} onChange={(e) => setAnnotations(prev => prev.map(a => a.id === selectedId ? {...a, thickness: parseInt(e.target.value)} : a))} className="w-full accent-gray-500"/>
                         </div>
                         <div>
-                          <label className="text-[10px] md:text-xs text-gray-400 flex justify-between">
+                          <label className="text-xs text-gray-400 flex justify-between">
                             <span>Head Width</span>
                             <span>{selectedItem.headWidth || 240}px</span>
                           </label>
                           <input type="range" min="30" max="600" value={selectedItem.headWidth || 240} onChange={(e) => setAnnotations(prev => prev.map(a => a.id === selectedId ? {...a, headWidth: parseInt(e.target.value)} : a))} className="w-full accent-gray-500"/>
                         </div>
                         <div>
-                          <label className="text-[10px] md:text-xs text-gray-400 flex justify-between">
+                          <label className="text-xs text-gray-400 flex justify-between">
                             <span>Head Length</span>
                             <span>{selectedItem.headLength || 120}px</span>
                           </label>
@@ -1593,36 +1592,36 @@
                   {selectedItem.type === 'text' && (
                     <>
                       <div>
-                        <label className="text-[10px] md:text-xs text-gray-400 block mb-1 md:mb-2">Text Content</label>
+                        <label className="text-xs text-gray-400 block mb-2">Text Content</label>
                         <input 
                           type="text" 
                           value={selectedItem.text} 
                           onChange={(e) => setAnnotations(prev => prev.map(a => a.id === selectedId ? {...a, text: e.target.value} : a))}
-                          className="w-full bg-gray-800 border border-gray-700 rounded p-1 md:p-2 text-white font-bold focus:outline-none focus:border-indigo-500 text-xs md:text-base"
+                          className="w-full bg-gray-800 border border-gray-700 rounded p-2 text-white font-bold focus:outline-none focus:border-indigo-500"
                         />
                       </div>
 
-                      <div className="flex gap-2 mb-1 md:mb-2">
+                      <div className="flex gap-2 mb-2">
                         <button 
                           onClick={() => setAnnotations(prev => prev.map(a => a.id === selectedId ? {...a, isBold: !a.isBold} : a))}
-                          className={`p-1.5 md:p-2 rounded flex-1 flex items-center justify-center border ${selectedItem.isBold ? 'bg-indigo-600 border-indigo-500 text-white' : 'bg-gray-800 border-gray-700 text-gray-400 hover:text-white'}`}
+                          className={`p-2 rounded flex-1 flex items-center justify-center border ${selectedItem.isBold ? 'bg-indigo-600 border-indigo-500 text-white' : 'bg-gray-800 border-gray-700 text-gray-400 hover:text-white'}`}
                           title="Bold"
                         >
-                          <Bold className="w-3 h-3 md:w-4 md:h-4" />
+                          <Bold className="w-4 h-4" />
                         </button>
                         <button 
                           onClick={() => setAnnotations(prev => prev.map(a => a.id === selectedId ? {...a, isItalic: !a.isItalic} : a))}
-                          className={`p-1.5 md:p-2 rounded flex-1 flex items-center justify-center border ${selectedItem.isItalic ? 'bg-indigo-600 border-indigo-500 text-white' : 'bg-gray-800 border-gray-700 text-gray-400 hover:text-white'}`}
+                          className={`p-2 rounded flex-1 flex items-center justify-center border ${selectedItem.isItalic ? 'bg-indigo-600 border-indigo-500 text-white' : 'bg-gray-800 border-gray-700 text-gray-400 hover:text-white'}`}
                           title="Italic"
                         >
-                          <Italic className="w-3 h-3 md:w-4 md:h-4" />
+                          <Italic className="w-4 h-4" />
                         </button>
                       </div>
                       
                       <div>
-                        <label className="text-[10px] md:text-xs text-gray-400 flex justify-between mb-1 md:mb-2">
+                        <label className="text-xs text-gray-400 flex justify-between mb-2">
                           <span>Rotation</span>
-                          <RotateCw className="w-2.5 h-2.5 md:w-3 md:h-3"/>
+                          <RotateCw className="w-3 h-3"/>
                         </label>
                         <input 
                           type="range" min="-180" max="180" 
@@ -1634,9 +1633,9 @@
                     </>
                   )}
 
-                  <div className="bg-gray-800/50 p-2 md:p-4 rounded-lg mt-auto border border-gray-800 flex-shrink-0">
-                     <p className="text-[9px] md:text-xs text-gray-400 mb-1">Tips:</p>
-                     <ul className="text-[8px] md:text-[11px] text-gray-500 list-disc pl-3 md:pl-4 space-y-1">
+                  <div className="bg-gray-800/50 p-4 rounded-lg mt-auto border border-gray-800">
+                     <p className="text-xs text-gray-400 mb-1">Tips:</p>
+                     <ul className="text-[11px] text-gray-500 list-disc pl-4 space-y-1">
                        {selectedItem.type === 'cameraArrow' && <li>Drag the red <b>Curve Point</b> to bend the 3D volume.</li>}
                        {selectedItem.type === 'cameraArrow' && <li>Use Pitch and Roll to set the 3D perspective orientation.</li>}
                        {selectedItem.type === 'text' && <li>Drag text securely by clicking anywhere on the word.</li>}
@@ -1644,27 +1643,27 @@
                   </div>
                 </div>
               ) : (
-                <div className="p-4 md:p-6 flex flex-col items-center justify-center h-full text-gray-500 text-center bg-gray-900">
-                  <MousePointer2 className="w-6 h-6 md:w-8 md:h-8 mb-2 md:mb-3 opacity-20" />
-                  <p className="text-[10px] md:text-sm">Select an element on the canvas to edit its properties.</p>
+                <div className="p-6 flex flex-col items-center justify-center h-full text-gray-500 text-center bg-gray-900">
+                  <MousePointer2 className="w-8 h-8 mb-3 opacity-20" />
+                  <p className="text-sm">Select an element on the canvas to edit its properties.</p>
                 </div>
               )}
             </div>
           </div>
 
-          <div className="h-20 md:h-32 bg-gray-900 border-t border-gray-800 flex items-center px-2 md:px-4 overflow-x-auto gap-2 md:gap-4 custom-scrollbar flex-shrink-0 shadow-[0_-10px_20px_rgba(0,0,0,0.5)] z-40">
+          <div className="h-32 bg-gray-900 border-t border-gray-800 flex items-center px-4 overflow-x-auto gap-4 custom-scrollbar flex-shrink-0 shadow-[0_-10px_20px_rgba(0,0,0,0.5)] z-40">
             {frames.map((f, index) => (
               <div 
                 key={f.id} 
                 onClick={() => setActiveFrameId(f.id)}
-                className={`relative flex-shrink-0 h-14 md:h-24 aspect-video rounded-lg overflow-hidden border-2 cursor-pointer transition-all ${activeFrameId === f.id ? 'border-indigo-500 ring-2 md:ring-4 ring-indigo-500/30 scale-105' : 'border-gray-700 hover:border-gray-500 opacity-60 hover:opacity-100'}`}
+                className={`relative flex-shrink-0 h-24 aspect-video rounded-lg overflow-hidden border-2 cursor-pointer transition-all ${activeFrameId === f.id ? 'border-indigo-500 ring-4 ring-indigo-500/30 scale-105' : 'border-gray-700 hover:border-gray-500 opacity-60 hover:opacity-100'}`}
               >
-                <div className="absolute top-1 left-1 bg-black/80 text-[8px] md:text-[10px] font-mono px-1 md:px-1.5 py-0.5 rounded text-gray-300 z-10">
+                <div className="absolute top-1 left-1 bg-black/80 text-[10px] font-mono px-1.5 py-0.5 rounded text-gray-300 z-10">
                   Shot {index + 1}
                 </div>
                 {f.annotations && f.annotations.length > 0 && (
-                  <div className="absolute top-1 right-1 bg-purple-600/90 text-[8px] md:text-[10px] px-1 md:px-1.5 py-0.5 rounded text-white z-10 flex items-center">
-                    <TypeIcon className="w-2 h-2 md:w-3 md:h-3"/>
+                  <div className="absolute top-1 right-1 bg-purple-600/90 text-[10px] px-1.5 py-0.5 rounded text-white z-10">
+                    <TypeIcon className="w-3 h-3"/>
                   </div>
                 )}
                 <img src={f.dataUrl} alt="Thumbnail" className="w-full h-full object-cover pointer-events-none" />
